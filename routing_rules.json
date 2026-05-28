@@ -1,0 +1,21 @@
+{
+  "stages": {
+    "planning": {
+      "persona": "principal_engineer",
+      "keywords": ["plan", "planning", "architecture", "design", "spec", "requirements", "rfc"]
+    },
+    "refactor": {
+      "persona": "principal_engineer",
+      "keywords": ["refactor", "restructure", "cleanup", "tech debt", "modernize", "simplify"]
+    },
+    "evaluation": {
+      "persona": "principal_engineer",
+      "keywords": ["evaluate", "assessment", "audit", "score", "metrics", "quality"]
+    },
+    "execution": {
+      "persona": "feature_developer",
+      "keywords": ["implement", "build", "develop", "code", "feature", "ship", "fix"]
+    }
+  },
+  "default_stage": "execution"
+}

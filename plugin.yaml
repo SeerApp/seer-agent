@@ -1,4 +1,4 @@
 name: seer-agent
-version: "0.1.0"
-description: "Barebones local Hermes plugin scaffold for seer-agent."
+version: "0.3.0"
+description: "Seer persona bootstrap and routing plugin with persona-aware delegation."
 author: "local"
