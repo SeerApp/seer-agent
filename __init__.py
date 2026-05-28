@@ -315,13 +315,18 @@ def _on_pre_llm_call(user_message: str = "", **_) -> Optional[dict]:
             _PRECISION_GATE.pop(gate_key, None)
     return {
         "context": (
-            "seer-agent policy reminder: this appears to be coding/planning/refactor work. "
-            "Before implementation actions, call the `seer_delegate` tool so routing can choose "
-            "Principal Engineer (planning/refactor/evaluation) or Feature Developer (execution). "
-            + (
-                "This prompt is currently vague: ask precise clarification questions first, "
-                "or call seer_delegate with stage='planning'."
-                if vague else
+            (
+                "seer-agent strict policy: this coding request is vague. "
+                "Your next action MUST be a single `clarify` tool call immediately. "
+                "Do not produce free-form analysis, plans, or long reasoning before clarifying. "
+                "Ask concise, high-leverage questions that pin down scope, constraints, success criteria, "
+                "and the first deliverable. After clarify resolves ambiguity, call `seer_delegate` "
+                "with stage='planning'."
+                if vague
+                else
+                "seer-agent policy reminder: this appears to be coding/planning/refactor work. "
+                "Before implementation actions, call the `seer_delegate` tool so routing can choose "
+                "Principal Engineer (planning/refactor/evaluation) or Feature Developer (execution). "
                 "Proceed with routed delegation."
             )
         )
