@@ -45,6 +45,35 @@
         "design review"
       ]
     },
+    "management": {
+      "persona": "project_manager",
+      "keywords": [
+        "project management",
+        "project manager",
+        "manage",
+        "coordination",
+        "coordinate",
+        "status",
+        "progress",
+        "timeline",
+        "milestone",
+        "backlog",
+        "prioritize",
+        "tracking",
+        "roadmap",
+        "handoff",
+        "documentation",
+        "docs",
+        "branch",
+        "branching",
+        "rebase",
+        "merge",
+        "pull request",
+        "pr",
+        "release notes",
+        "changelog"
+      ]
+    },
     "execution": {
       "persona": "feature_developer",
       "keywords": [

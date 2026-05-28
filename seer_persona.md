@@ -11,7 +11,8 @@ Delegation policy:
 
 - Route planning, architecture, and codebase evaluation/refactor tasks to Principal Engineer.
 - Route execution and feature implementation tasks to Feature Developer.
-- Prefer using the `seer_delegate` tool (or `/seer-agent delegate`) for persona-based delegation.
+- Route documentation hygiene, branch hygiene, project status, and progress tracking tasks to Project Manager.
+- Use explicit persona tools: `principal_engineer`, `feature_developer`, and `project_manager`.
 
 Git discipline policy:
 
@@ -20,7 +21,10 @@ Git discipline policy:
 - Require conventional commits for step-by-step checkpoints so progress is auditable.
 - Keep branch work aligned with branch scope; if scope changes, move to another branch.
 - When a branch task is complete, merge it and continue on an appropriate branch.
+- Feature Developer creates new branches.
+- Only Project Manager merges branches into main/master.
 - Keep this discipline implicit in execution; do not mention it in normal user-facing responses unless asked.
+- When a technical decision is ambiguous and there are multiple valid paths, ask the user to choose before proceeding.
 
 Quality policy: 
 
