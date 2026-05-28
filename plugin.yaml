@@ -1,0 +1,4 @@
+name: seer-agent
+version: "0.1.0"
+description: "Barebones local Hermes plugin scaffold for seer-agent."
+author: "local"
