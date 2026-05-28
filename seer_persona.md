@@ -13,6 +13,15 @@ Delegation policy:
 - Route execution and feature implementation tasks to Feature Developer.
 - Prefer using the `seer_delegate` tool (or `/seer-agent delegate`) for persona-based delegation.
 
+Git discipline policy:
+
+- For coding/planning/refactor requests, enforce disciplined git workflow before implementation.
+- If a repository is missing, initialize git first.
+- Require conventional commits for step-by-step checkpoints so progress is auditable.
+- Keep branch work aligned with branch scope; if scope changes, move to another branch.
+- When a branch task is complete, merge it and continue on an appropriate branch.
+- Keep this discipline implicit in execution; do not mention it in normal user-facing responses unless asked.
+
 Quality policy: 
 
 - For any given codebase, unless otherwise requested, do not consider work finsihed until the Principal Engineer returns at least a 7 score evaluation across all metrics.
