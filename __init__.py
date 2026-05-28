@@ -16,6 +16,22 @@ logger = logging.getLogger(__name__)
 _MANAGED_START = "<!-- seer-agent persona:begin -->"
 _MANAGED_END = "<!-- seer-agent persona:end -->"
 _PERSONA_FILE = "seer_persona.md"
+_AUTO_ROUTE_KEYWORDS = (
+    "solana",
+    "anchor",
+    "program",
+    "instruction",
+    "cpi",
+    "idl",
+    "refactor",
+    "architecture",
+    "design",
+    "spec",
+    "implement",
+    "feature",
+    "test",
+    "codebase",
+)
 
 
 def _resolve_hermes_home() -> Path:
@@ -102,7 +118,10 @@ def _status() -> str:
     return (
         f"[seer-agent] SOUL.md: {soul_path}\n"
         f"[seer-agent] Persona installed: {'yes' if installed else 'no'}\n"
-        f"[seer-agent] Personas available: {FEATURE_DEVELOPER}, {PRINCIPAL_ENGINEER}"
+        f"[seer-agent] Personas available: {FEATURE_DEVELOPER}, {PRINCIPAL_ENGINEER}\n"
+        "[seer-agent] Routing tool: seer_delegate (recommended)\n"
+        "[seer-agent] Direct delegate_task: blocked by seer policy\n"
+        "[seer-agent] Auto-route hinting: enabled for coding/Solana intents"
     )
 
 
@@ -169,6 +188,70 @@ def _handle_slash(raw_args: str, ctx=None) -> Optional[str]:
     return "Unknown subcommand. Run `/seer-agent help`."
 
 
+def _seer_delegate(task: str, stage: str = "", ctx=None) -> str:
+    """Model-callable routed delegation entrypoint."""
+    if ctx is None:
+        return json.dumps({"error": "Plugin context unavailable for delegation."})
+    task_text = (task or "").strip()
+    if not task_text:
+        return json.dumps({"error": "task is required"})
+
+    stage_override = stage.strip() if isinstance(stage, str) else ""
+    decision, payload = build_delegate_payload(task_text, stage_override=stage_override or None)
+    raw = ctx.dispatch_tool("delegate_task", payload)
+    parsed = None
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        pass
+    return json.dumps(
+        {
+            "success": True,
+            "routed_persona": decision.persona,
+            "routed_stage": decision.stage,
+            "reason": decision.reason,
+            "delegate_result": parsed if isinstance(parsed, dict) else raw,
+        }
+    )
+
+
+def _on_pre_tool_call(tool_name: str = "", args: Optional[dict] = None, **_) -> Optional[dict]:
+    """Enforce Seer delegation policy by disallowing direct delegate_task calls."""
+    if tool_name != "delegate_task":
+        return None
+    if isinstance(args, dict) and args.get("context") and "Apply this persona strictly while solving the task." in str(args.get("context")):
+        # Already Seer-routed payload (from /seer-agent delegate or seer_delegate tool).
+        return None
+    return {
+        "action": "block",
+        "message": (
+            "seer-agent policy: do not call delegate_task directly. "
+            "Use the seer_delegate tool (or /seer-agent delegate) so routing can pick "
+            "Principal Engineer for planning/refactor/evaluation and Feature Developer for execution."
+        ),
+    }
+
+
+def _looks_like_coding_request(user_message: str) -> bool:
+    text = (user_message or "").lower()
+    return any(kw in text for kw in _AUTO_ROUTE_KEYWORDS)
+
+
+def _on_pre_llm_call(user_message: str = "", **_) -> Optional[dict]:
+    """Steer the model to use seer_delegate before coding work."""
+    if not isinstance(user_message, str) or not user_message.strip():
+        return None
+    if not _looks_like_coding_request(user_message):
+        return None
+    return {
+        "context": (
+            "seer-agent policy reminder: this appears to be coding/planning/refactor work. "
+            "Before implementation actions, call the `seer_delegate` tool so routing can choose "
+            "Principal Engineer (planning/refactor/evaluation) or Feature Developer (execution)."
+        )
+    }
+
+
 def register(ctx) -> None:
     """Hermes plugin entrypoint."""
     logger.info("seer-agent plugin loaded")
@@ -177,3 +260,39 @@ def register(ctx) -> None:
         handler=lambda raw_args: _handle_slash(raw_args, ctx=ctx),
         description="Install and inspect Seer persona in SOUL.md.",
     )
+    ctx.register_tool(
+        name="seer_delegate",
+        toolset="delegation",
+        schema={
+            "name": "seer_delegate",
+            "description": (
+                "Route a task to Seer personas and delegate it. "
+                "Planning/architecture/refactor/evaluation routes to Principal Engineer; "
+                "execution routes to Feature Developer. Prefer this over delegate_task."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task": {
+                        "type": "string",
+                        "description": "Task to delegate.",
+                    },
+                    "stage": {
+                        "type": "string",
+                        "enum": ["planning", "refactor", "evaluation", "execution"],
+                        "description": "Optional explicit stage override.",
+                    },
+                },
+                "required": ["task"],
+            },
+        },
+        handler=lambda args, **kw: _seer_delegate(
+            task=args.get("task", ""),
+            stage=args.get("stage", ""),
+            ctx=ctx,
+        ),
+        description="Seer-routed delegate wrapper with persona policy.",
+        emoji="🧭",
+    )
+    ctx.register_hook("pre_tool_call", _on_pre_tool_call)
+    ctx.register_hook("pre_llm_call", _on_pre_llm_call)

@@ -2,19 +2,67 @@
   "stages": {
     "planning": {
       "persona": "principal_engineer",
-      "keywords": ["plan", "planning", "architecture", "design", "spec", "requirements", "rfc"]
+      "keywords": [
+        "plan",
+        "planning",
+        "architecture",
+        "design",
+        "spec",
+        "requirements",
+        "rfc",
+        "solana architecture",
+        "anchor architecture",
+        "program design",
+        "account model",
+        "pda design",
+        "state layout"
+      ]
     },
     "refactor": {
       "persona": "principal_engineer",
-      "keywords": ["refactor", "restructure", "cleanup", "tech debt", "modernize", "simplify"]
+      "keywords": [
+        "refactor",
+        "restructure",
+        "cleanup",
+        "tech debt",
+        "modernize",
+        "simplify",
+        "rewrite module",
+        "extract abstraction"
+      ]
     },
     "evaluation": {
       "persona": "principal_engineer",
-      "keywords": ["evaluate", "assessment", "audit", "score", "metrics", "quality"]
+      "keywords": [
+        "evaluate",
+        "assessment",
+        "audit",
+        "score",
+        "metrics",
+        "quality",
+        "review codebase",
+        "architecture review",
+        "design review"
+      ]
     },
     "execution": {
       "persona": "feature_developer",
-      "keywords": ["implement", "build", "develop", "code", "feature", "ship", "fix"]
+      "keywords": [
+        "implement",
+        "build",
+        "develop",
+        "code",
+        "feature",
+        "ship",
+        "fix",
+        "anchor instruction",
+        "program instruction",
+        "cpi",
+        "idl",
+        "integration test",
+        "program test",
+        "transaction flow"
+      ]
     }
   },
   "default_stage": "execution"

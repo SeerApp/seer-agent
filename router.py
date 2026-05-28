@@ -49,7 +49,11 @@ def _persona_for_stage(stage: str, rules: dict) -> str:
 
 def route_task(task_text: str, stage_override: Optional[str] = None) -> RouteDecision:
     rules = _load_rules()
-    stage = stage_override or _detect_stage(task_text, rules)
+    valid_stages = set(rules.get("stages", {}).keys())
+    if stage_override and stage_override not in valid_stages:
+        stage = rules.get("default_stage", "execution")
+    else:
+        stage = stage_override or _detect_stage(task_text, rules)
     persona = _persona_for_stage(stage, rules)
 
     if persona == PRINCIPAL_ENGINEER:
