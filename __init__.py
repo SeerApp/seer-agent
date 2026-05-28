@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from typing import Optional
 import json
+import threading
 
 from .router import build_delegate_payload, FEATURE_DEVELOPER, PRINCIPAL_ENGINEER, route_task
 
@@ -32,6 +33,11 @@ _AUTO_ROUTE_KEYWORDS = (
     "test",
     "codebase",
 )
+
+_GATE_LOCK = threading.Lock()
+# key -> gate state for current task/session
+_PRECISION_GATE: dict[str, dict[str, object]] = {}
+_GATE_ALLOWED_TOOLS = {"clarify", "seer_delegate"}
 
 
 def _resolve_hermes_home() -> Path:
@@ -198,6 +204,11 @@ def _seer_delegate(task: str, stage: str = "", ctx=None) -> str:
 
     stage_override = stage.strip() if isinstance(stage, str) else ""
     decision, payload = build_delegate_payload(task_text, stage_override=stage_override or None)
+    # Any seer_delegate call satisfies the precision gate for this turn scope.
+    with _GATE_LOCK:
+        for gate in _PRECISION_GATE.values():
+            gate["satisfied"] = True
+            gate["reason"] = "seer_delegate invoked"
     raw = ctx.dispatch_tool("delegate_task", payload)
     parsed = None
     try:
@@ -217,6 +228,31 @@ def _seer_delegate(task: str, stage: str = "", ctx=None) -> str:
 
 def _on_pre_tool_call(tool_name: str = "", args: Optional[dict] = None, **_) -> Optional[dict]:
     """Enforce Seer delegation policy by disallowing direct delegate_task calls."""
+    task_id = _.get("task_id", "") if isinstance(_, dict) else ""
+    session_id = _.get("session_id", "") if isinstance(_, dict) else ""
+    gate_key = task_id or session_id or "default"
+
+    # Precision gate: for vague coding asks, only clarify/seer_delegate may run
+    # until precision is established.
+    with _GATE_LOCK:
+        gate = _PRECISION_GATE.get(gate_key)
+    if gate and not gate.get("satisfied"):
+        if tool_name not in _GATE_ALLOWED_TOOLS:
+            return {
+                "action": "block",
+                "message": (
+                    "seer-agent precision gate: request is too vague for execution. "
+                    "First ask focused clarifying questions via the clarify tool or call "
+                    "seer_delegate with stage='planning'."
+                ),
+            }
+        if tool_name == "clarify":
+            with _GATE_LOCK:
+                if gate_key in _PRECISION_GATE:
+                    _PRECISION_GATE[gate_key]["satisfied"] = True
+                    _PRECISION_GATE[gate_key]["reason"] = "clarify invoked"
+            return None
+
     if tool_name != "delegate_task":
         return None
     if isinstance(args, dict) and args.get("context") and "Apply this persona strictly while solving the task." in str(args.get("context")):
@@ -237,17 +273,57 @@ def _looks_like_coding_request(user_message: str) -> bool:
     return any(kw in text for kw in _AUTO_ROUTE_KEYWORDS)
 
 
+def _looks_vague(user_message: str) -> bool:
+    text = (user_message or "").strip().lower()
+    if not text:
+        return False
+    words = text.split()
+    has_scope_marker = any(
+        marker in text
+        for marker in (
+            "acceptance criteria",
+            "requirements",
+            "spec",
+            "milestone",
+            "phase",
+            "step",
+            "tests",
+            "instruction",
+            "module",
+            "file",
+            "crate",
+            "program id",
+        )
+    )
+    return len(words) <= 20 and not has_scope_marker
+
+
 def _on_pre_llm_call(user_message: str = "", **_) -> Optional[dict]:
     """Steer the model to use seer_delegate before coding work."""
     if not isinstance(user_message, str) or not user_message.strip():
         return None
     if not _looks_like_coding_request(user_message):
         return None
+    task_id = _.get("task_id", "") if isinstance(_, dict) else ""
+    session_id = _.get("session_id", "") if isinstance(_, dict) else ""
+    gate_key = task_id or session_id or "default"
+    vague = _looks_vague(user_message)
+    with _GATE_LOCK:
+        if vague:
+            _PRECISION_GATE[gate_key] = {"satisfied": False, "reason": "vague prompt"}
+        else:
+            _PRECISION_GATE.pop(gate_key, None)
     return {
         "context": (
             "seer-agent policy reminder: this appears to be coding/planning/refactor work. "
             "Before implementation actions, call the `seer_delegate` tool so routing can choose "
-            "Principal Engineer (planning/refactor/evaluation) or Feature Developer (execution)."
+            "Principal Engineer (planning/refactor/evaluation) or Feature Developer (execution). "
+            + (
+                "This prompt is currently vague: ask precise clarification questions first, "
+                "or call seer_delegate with stage='planning'."
+                if vague else
+                "Proceed with routed delegation."
+            )
         )
     }
 
