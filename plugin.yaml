@@ -1,4 +1,4 @@
 name: seer-agent
-version: "0.4.0"
-description: "Seer persona bootstrap with enforced persona-routed delegation."
+version: "0.5.0"
+description: "Seer persona bootstrap with business-first and persona-routed delegation gates."
 author: "local"

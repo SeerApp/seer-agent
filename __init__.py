@@ -37,7 +37,9 @@ _AUTO_ROUTE_KEYWORDS = (
 _GATE_LOCK = threading.Lock()
 # key -> gate state for current task/session
 _PRECISION_GATE: dict[str, dict[str, object]] = {}
-_GATE_ALLOWED_TOOLS = {"clarify", "seer_delegate"}
+_BUSINESS_GATE: dict[str, dict[str, object]] = {}
+_BUSINESS_BRIEF: dict[str, dict[str, str]] = {}
+_GATE_ALLOWED_TOOLS = {"clarify", "seer_set_business_brief"}
 
 
 def _resolve_hermes_home() -> Path:
@@ -121,13 +123,17 @@ def _status() -> str:
         return f"[seer-agent] No SOUL.md found at {soul_path}"
     content = soul_path.read_text(encoding="utf-8")
     installed = _MANAGED_START in content and _MANAGED_END in content
+    gate_key = "default"
+    with _GATE_LOCK:
+        has_brief = gate_key in _BUSINESS_BRIEF
     return (
         f"[seer-agent] SOUL.md: {soul_path}\n"
         f"[seer-agent] Persona installed: {'yes' if installed else 'no'}\n"
         f"[seer-agent] Personas available: {FEATURE_DEVELOPER}, {PRINCIPAL_ENGINEER}\n"
         "[seer-agent] Routing tool: seer_delegate (recommended)\n"
         "[seer-agent] Direct delegate_task: blocked by seer policy\n"
-        "[seer-agent] Auto-route hinting: enabled for coding/Solana intents"
+        "[seer-agent] Auto-route hinting: enabled for coding/Solana intents\n"
+        f"[seer-agent] Business brief set (current session): {'yes' if has_brief else 'no'}"
     )
 
 
@@ -226,11 +232,67 @@ def _seer_delegate(task: str, stage: str = "", ctx=None) -> str:
     )
 
 
+def _seer_set_business_brief(
+    objective: str = "",
+    target_users: str = "",
+    problem_statement: str = "",
+    success_metrics: str = "",
+    scope_in: str = "",
+    scope_out: str = "",
+    constraints: str = "",
+    current_stage: str = "",
+    task_id: str = "",
+    session_id: str = "",
+) -> str:
+    """Capture the mandatory business brief before technical work."""
+    gate_key = task_id or session_id or "default"
+    required = {
+        "objective": objective,
+        "target_users": target_users,
+        "problem_statement": problem_statement,
+        "success_metrics": success_metrics,
+        "scope_in": scope_in,
+        "scope_out": scope_out,
+        "constraints": constraints,
+        "current_stage": current_stage,
+    }
+    missing = [k for k, v in required.items() if not isinstance(v, str) or not v.strip()]
+    if missing:
+        return json.dumps(
+            {
+                "success": False,
+                "error": "Missing required business brief fields.",
+                "missing_fields": missing,
+            }
+        )
+
+    brief = {k: v.strip() for k, v in required.items()}
+    with _GATE_LOCK:
+        _BUSINESS_BRIEF[gate_key] = brief
+        _BUSINESS_GATE[gate_key] = {"satisfied": True, "reason": "business brief captured"}
+    return json.dumps({"success": True, "message": "Business brief captured.", "brief": brief})
+
+
 def _on_pre_tool_call(tool_name: str = "", args: Optional[dict] = None, **_) -> Optional[dict]:
     """Enforce Seer delegation policy by disallowing direct delegate_task calls."""
     task_id = _.get("task_id", "") if isinstance(_, dict) else ""
     session_id = _.get("session_id", "") if isinstance(_, dict) else ""
     gate_key = task_id or session_id or "default"
+
+    # Business-intent gate: block technical progress until business brief exists.
+    with _GATE_LOCK:
+        b_gate = _BUSINESS_GATE.get(gate_key)
+    if b_gate and not b_gate.get("satisfied"):
+        if tool_name not in _GATE_ALLOWED_TOOLS:
+            return {
+                "action": "block",
+                "message": (
+                    "seer-agent business gate: business requirements are not yet defined. "
+                    "Before any technical planning or implementation, call `clarify` to gather "
+                    "business intent and then call `seer_set_business_brief` with the required fields."
+                ),
+            }
+        return None
 
     # Precision gate: for vague coding asks, only clarify/seer_delegate may run
     # until precision is established.
@@ -242,8 +304,7 @@ def _on_pre_tool_call(tool_name: str = "", args: Optional[dict] = None, **_) -> 
                 "action": "block",
                 "message": (
                     "seer-agent precision gate: request is too vague for execution. "
-                    "First ask focused clarifying questions via the clarify tool or call "
-                    "seer_delegate with stage='planning'."
+                    "First ask focused clarifying questions via the clarify tool."
                 ),
             }
         if tool_name == "clarify":
@@ -298,6 +359,26 @@ def _looks_vague(user_message: str) -> bool:
     return len(words) <= 20 and not has_scope_marker
 
 
+def _looks_business_vague(user_message: str) -> bool:
+    text = (user_message or "").strip().lower()
+    if not text:
+        return False
+    business_markers = (
+        "for who",
+        "target user",
+        "customer",
+        "problem",
+        "goal",
+        "success metric",
+        "mvp",
+        "scope",
+        "revenue",
+        "market",
+    )
+    has_business_marker = any(m in text for m in business_markers)
+    return _looks_like_coding_request(text) and not has_business_marker
+
+
 def _on_pre_llm_call(user_message: str = "", **_) -> Optional[dict]:
     """Steer the model to use seer_delegate before coding work."""
     if not isinstance(user_message, str) or not user_message.strip():
@@ -308,7 +389,14 @@ def _on_pre_llm_call(user_message: str = "", **_) -> Optional[dict]:
     session_id = _.get("session_id", "") if isinstance(_, dict) else ""
     gate_key = task_id or session_id or "default"
     vague = _looks_vague(user_message)
+    business_vague = _looks_business_vague(user_message)
     with _GATE_LOCK:
+        if business_vague:
+            _BUSINESS_GATE[gate_key] = {"satisfied": False, "reason": "missing business brief"}
+        elif gate_key in _BUSINESS_GATE and gate_key not in _BUSINESS_BRIEF:
+            _BUSINESS_GATE[gate_key] = {"satisfied": False, "reason": "business brief required"}
+        else:
+            _BUSINESS_GATE.pop(gate_key, None)
         if vague:
             _PRECISION_GATE[gate_key] = {"satisfied": False, "reason": "vague prompt"}
         else:
@@ -316,30 +404,93 @@ def _on_pre_llm_call(user_message: str = "", **_) -> Optional[dict]:
     return {
         "context": (
             (
-                "seer-agent strict policy: this coding request is vague. "
-                "Your next action MUST be a single `clarify` tool call immediately. "
-                "Do not produce free-form analysis, plans, or long reasoning before clarifying. "
-                "Ask concise, high-leverage questions that pin down scope, constraints, success criteria, "
-                "and the first deliverable. After clarify resolves ambiguity, call `seer_delegate` "
-                "with stage='planning'."
-                if vague
+                "seer-agent strict business-first policy: this request is missing business intent. "
+                "Your next action MUST be a single `clarify` tool call focused on business goals "
+                "(objective, target users, problem statement, success metrics, in-scope/out-of-scope, constraints, stage). "
+                "After clarification, call `seer_set_business_brief` with all required fields. "
+                "Do not perform technical planning or implementation before the brief is captured."
+                if business_vague
                 else
-                "seer-agent policy reminder: this appears to be coding/planning/refactor work. "
-                "Before implementation actions, call the `seer_delegate` tool so routing can choose "
-                "Principal Engineer (planning/refactor/evaluation) or Feature Developer (execution). "
-                "Proceed with routed delegation."
+                (
+                    "seer-agent strict policy: this coding request is vague. "
+                    "Your next action MUST be a single `clarify` tool call immediately. "
+                    "Do not produce free-form analysis, plans, or long reasoning before clarifying. "
+                    "Ask concise, high-leverage questions that pin down scope, constraints, success criteria, "
+                    "and the first deliverable. After clarify resolves ambiguity, call `seer_delegate` "
+                    "with stage='planning'."
+                    if vague
+                    else
+                    "seer-agent policy reminder: this appears to be coding/planning/refactor work. "
+                    "Before implementation actions, call the `seer_delegate` tool so routing can choose "
+                    "Principal Engineer (planning/refactor/evaluation) or Feature Developer (execution). "
+                    "Proceed with routed delegation."
+                )
             )
         )
     }
 
 
-def register(ctx) -> None:
-    """Hermes plugin entrypoint."""
-    logger.info("seer-agent plugin loaded")
-    ctx.register_command(
-        "seer-agent",
-        handler=lambda raw_args: _handle_slash(raw_args, ctx=ctx),
-        description="Install and inspect Seer persona in SOUL.md.",
+def _business_brief_schema() -> dict:
+    return {
+        "name": "seer_set_business_brief",
+        "description": (
+            "Set the required business brief before technical planning/execution. "
+            "This must be captured first for vague product requests."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "objective": {"type": "string", "description": "Primary business objective."},
+                "target_users": {"type": "string", "description": "Who the users/customers are."},
+                "problem_statement": {"type": "string", "description": "Problem being solved."},
+                "success_metrics": {"type": "string", "description": "How success will be measured."},
+                "scope_in": {"type": "string", "description": "Explicitly in-scope capabilities."},
+                "scope_out": {"type": "string", "description": "Explicitly out-of-scope capabilities."},
+                "constraints": {"type": "string", "description": "Key constraints (time, risk, compliance, etc.)."},
+                "current_stage": {"type": "string", "description": "Current stage (idea, MVP, growth, etc.)."},
+            },
+            "required": [
+                "objective",
+                "target_users",
+                "problem_statement",
+                "success_metrics",
+                "scope_in",
+                "scope_out",
+                "constraints",
+                "current_stage",
+            ],
+        },
+    }
+    
+
+def _extract_task_session_ids(kwargs: dict) -> tuple[str, str]:
+    return str(kwargs.get("task_id", "") or ""), str(kwargs.get("session_id", "") or "")
+
+
+def _business_brief_handler(args: dict, **kwargs) -> str:
+    task_id, session_id = _extract_task_session_ids(kwargs)
+    return _seer_set_business_brief(
+        objective=args.get("objective", ""),
+        target_users=args.get("target_users", ""),
+        problem_statement=args.get("problem_statement", ""),
+        success_metrics=args.get("success_metrics", ""),
+        scope_in=args.get("scope_in", ""),
+        scope_out=args.get("scope_out", ""),
+        constraints=args.get("constraints", ""),
+        current_stage=args.get("current_stage", ""),
+        task_id=task_id,
+        session_id=session_id,
+    )
+
+
+def _register_tools(ctx) -> None:
+    ctx.register_tool(
+        name="seer_set_business_brief",
+        toolset="delegation",
+        schema=_business_brief_schema(),
+        handler=_business_brief_handler,
+        description="Capture business brief before technical work.",
+        emoji="📌",
     )
     ctx.register_tool(
         name="seer_delegate",
@@ -375,5 +526,16 @@ def register(ctx) -> None:
         description="Seer-routed delegate wrapper with persona policy.",
         emoji="🧭",
     )
+                
+
+def register(ctx) -> None:
+    """Hermes plugin entrypoint."""
+    logger.info("seer-agent plugin loaded")
+    ctx.register_command(
+        "seer-agent",
+        handler=lambda raw_args: _handle_slash(raw_args, ctx=ctx),
+        description="Install and inspect Seer persona in SOUL.md.",
+    )
+    _register_tools(ctx)
     ctx.register_hook("pre_tool_call", _on_pre_tool_call)
     ctx.register_hook("pre_llm_call", _on_pre_llm_call)
