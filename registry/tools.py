@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from ..core import operations
+from ..types import JsonDict, SeerPluginContext
 
 
-def business_brief_schema() -> dict:
+def business_brief_schema() -> JsonDict:
     return {
         "name": "seer_set_business_brief",
         "description": (
@@ -38,7 +39,7 @@ def business_brief_schema() -> dict:
     }
 
 
-def business_refresh_schema() -> dict:
+def business_refresh_schema() -> JsonDict:
     return {
         "name": "seer_refresh_business_brief",
         "description": "Infer and persist business brief from repository docs for this task/session.",
@@ -52,7 +53,7 @@ def business_refresh_schema() -> dict:
     }
 
 
-def register_tools(ctx) -> None:
+def register_tools(ctx: SeerPluginContext) -> None:
     ctx.register_tool(
         name="principal_engineer",
         toolset="delegation",

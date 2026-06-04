@@ -2,20 +2,29 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any
 
 from .policy_engine import handle_pre_llm_call, handle_pre_tool_call
 from ..router import PROJECT_MANAGER
 from ..core import state
 from ..core import operations
+from ..types import PreLlmCallHookResult, PreToolCallHookResult, ToolArgs
 
 
-def on_pre_tool_call(tool_name: str = "", args: Optional[dict] = None, **kwargs) -> Optional[dict]:
+def on_pre_tool_call(
+    *,
+    tool_name: str = "",
+    args: ToolArgs | None = None,
+    task_id: str = "",
+    session_id: str = "",
+    tool_call_id: str = "",
+    **_: Any,
+) -> PreToolCallHookResult:
     return handle_pre_tool_call(
         tool_name=tool_name,
         args=args,
-        task_id=kwargs.get("task_id", "") if isinstance(kwargs, dict) else "",
-        session_id=kwargs.get("session_id", "") if isinstance(kwargs, dict) else "",
+        task_id=task_id,
+        session_id=session_id,
         lock=state.GATE_LOCK,
         business_gate_map=state.BUSINESS_GATE,
         git_gate_map=state.GIT_GATE,
@@ -32,11 +41,17 @@ def on_pre_tool_call(tool_name: str = "", args: Optional[dict] = None, **kwargs)
     )
 
 
-def on_pre_llm_call(user_message: str = "", **kwargs) -> Optional[dict]:
+def on_pre_llm_call(
+    *,
+    user_message: str = "",
+    task_id: str = "",
+    session_id: str = "",
+    **_: Any,
+) -> PreLlmCallHookResult:
     return handle_pre_llm_call(
         user_message=user_message,
-        task_id=kwargs.get("task_id", "") if isinstance(kwargs, dict) else "",
-        session_id=kwargs.get("session_id", "") if isinstance(kwargs, dict) else "",
+        task_id=task_id,
+        session_id=session_id,
         auto_route_keywords=state.AUTO_ROUTE_KEYWORDS,
         resolve_repo_business_context=lambda: operations.resolve_repo_business_context(),
         resolve_repo_dir=lambda: operations.resolve_repo_dir(""),

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from .command_engine import (
     handle_slash as handle_slash_impl,
@@ -15,6 +14,7 @@ from .command_engine import (
 from ..core import operations, state
 from ..router import FEATURE_DEVELOPER, PRINCIPAL_ENGINEER, PROJECT_MANAGER, route_task
 from ..runtime_utils import plugin_dir, resolve_display_home, resolve_hermes_home, soul_path
+from ..types import SeerPluginContext
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def status() -> str:
     )
 
 
-def handle_slash(raw_args: str, ctx=None) -> Optional[str]:
+def handle_slash(raw_args: str, ctx: SeerPluginContext | None = None) -> str | None:
     return handle_slash_impl(
         raw_args=raw_args,
         ctx=ctx,
