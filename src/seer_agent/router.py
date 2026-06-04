@@ -30,12 +30,10 @@ def _role_for_persona(persona: str) -> str:
     return "leaf"
 
 
-def _plugin_dir() -> Path:
-    return Path(__file__).resolve().parent
-
-
 def _load_rules() -> dict:
-    path = _plugin_dir() / "routing_rules.json"
+    from .paths import package_dir
+
+    path = package_dir() / "routing_rules.json"
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -83,7 +81,9 @@ def route_task(task_text: str, stage_override: Optional[str] = None) -> RouteDec
 
 
 def load_persona_markdown(persona: str) -> str:
-    path = _plugin_dir() / "personas" / f"{persona}.md"
+    from .paths import package_dir
+
+    path = package_dir() / "personas" / f"{persona}.md"
     return path.read_text(encoding="utf-8").strip()
 
 

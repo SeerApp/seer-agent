@@ -13,7 +13,8 @@ from .command_engine import (
 )
 from ..core import operations, state
 from ..router import FEATURE_DEVELOPER, PRINCIPAL_ENGINEER, PROJECT_MANAGER, route_task
-from ..runtime_utils import plugin_dir, resolve_display_home, resolve_hermes_home, soul_path
+from ..paths import package_dir
+from ..runtime_utils import resolve_display_home, resolve_hermes_home, soul_path
 from ..types import SeerPluginContext
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def _managed_block() -> str:
     return load_persona_markdown(
-        plugin_dir=plugin_dir(__file__).parent,
+        plugin_dir=package_dir(),
         persona_file=state.PERSONA_FILE,
         managed_start=state.MANAGED_START,
         managed_end=state.MANAGED_END,

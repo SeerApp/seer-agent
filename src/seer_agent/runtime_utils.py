@@ -29,10 +29,6 @@ def resolve_display_home(home: Path) -> str:
         return str(home)
 
 
-def plugin_dir(file_path: str) -> Path:
-    return Path(file_path).resolve().parent
-
-
 def soul_path(home: Path) -> Path:
     return home / "SOUL.md"
 

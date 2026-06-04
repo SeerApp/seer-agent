@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from ...paths import package_dir
 from ...types import JsonDict
 
 
@@ -46,7 +47,7 @@ def handler(codebase: str) -> str:
 
 
 def _codebases_path() -> Path:
-    return Path(__file__).resolve().parent.parent.parent / "codebases.json"
+    return package_dir() / "codebases.json"
 
 
 def _load_codebases() -> dict[str, str]:

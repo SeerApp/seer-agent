@@ -12,7 +12,7 @@ def register_tools(ctx: SeerPluginContext) -> None:
     ctx.register_tool(
         name=IS_CODEBASE_AVAILABLE_NAME,
         toolset=TOOLSET_NAME,
-        schema=is_codebase_available_schema,
+        schema=is_codebase_available_schema(),
         handler=lambda args, **kw: is_codebase_available_handler(codebase=args.get("codebase", "")),
         description="Check if a known Solana codebase is available locally.",
         emoji="📚",
