@@ -6,7 +6,7 @@ import logging
 
 from .handlers.commands import handle_slash
 from .handlers.hooks import on_pre_llm_call, on_pre_tool_call
-from .registry.tools import register_tools
+from .register import register_tools
 from .types import SeerPluginContext
 
 logger = logging.getLogger(__name__)
