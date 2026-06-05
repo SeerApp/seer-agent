@@ -50,6 +50,16 @@ class TestIsAvailable:
             assert codebase_store.is_available("agave", home=home) is True
 
 
+class TestGetAvailableCodebasesHandler:
+    def test_returns_catalog_keys(self) -> None:
+        from seer_agent.register.tools.get_available_codebases import handler
+
+        data = json.loads(handler())
+        assert data["success"] is True
+        assert data["codebases"] == codebase_store.catalog_names()
+        assert "agave" in data["codebases"]
+
+
 class TestIsCodebaseAvailableHandler:
     def test_unknown_codebase(self) -> None:
         from seer_agent.register.tools.is_codebase_available import handler
