@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Callable, Protocol
 
 
@@ -25,4 +26,11 @@ class SeerPluginContext(Protocol):
         description: str = "",
         emoji: str = "",
         override: bool = False,
+    ) -> None: ...
+
+    def register_skill(
+        self,
+        name: str,
+        path: Path,
+        description: str = "",
     ) -> None: ...
