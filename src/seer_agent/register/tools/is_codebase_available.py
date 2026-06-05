@@ -2,6 +2,7 @@ import json
 
 from ...paths import (
     catalog_names,
+    codebase_git_url,
     codebase_local_path,
     is_codebase_available as codebase_is_available,
     load_catalog,
@@ -49,7 +50,7 @@ def handler(codebase: str) -> str:
     payload: dict[str, object] = {
         "success": True,
         "codebase": name,
-        "repo_url": catalog[name],
+        "repo_url": codebase_git_url(name),
         "path": str(path),
         "available": available,
     }

@@ -1,3 +1,24 @@
 {
-  "agave": "https://github.com/anza-xyz/agave.git"
+  "agave": {
+    "git": "https://github.com/anza-xyz/agave.git",
+    "description": "The Validator for the Solana ecosystem. The majority of development tools are built on top of this codebase."
+  },
+  "anchor": { 
+    "git": "https://github.com/otter-sec/anchor.git",
+    "description": "The most popular development framework on Solana.",
+    "docs": "https://www.anchor-lang.com/docs"
+  },
+  "quasar": { 
+    "git": "https://github.com/blueshift-gg/quasar.git",
+    "description": "The fastest development framework on Solana.",
+    "docs": "https://quasar-lang.com/docs"
+  },
+  "pinocchio": { 
+    "git": "https://github.com/anza-xyz/pinocchio.git", 
+    "description": "The most popular lightweight development frameowrk on Solana."
+  },
+  "solana_explorer": { 
+    "git": "https://github.com/solana-foundation/explorer.git",
+    "description": "The most popular transaction explorer on Solana. Uses RPC methods to display transaction data."
+  }
 }

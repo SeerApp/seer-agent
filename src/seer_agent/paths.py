@@ -6,8 +6,21 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from typing import TypedDict
 
 from .home import resolve_hermes_home
+
+
+class CodebaseEntry(TypedDict):
+    git: str
+    description: str
+    docs: str
+
+
+class CodebaseSummary(TypedDict):
+    name: str
+    description: str
+    docs: str
 
 _PKG_DIR = Path(__file__).resolve().parent
 _CATALOG_FILE = "codebases.json"
@@ -33,16 +46,59 @@ def catalog_path() -> Path:
     return package_dir() / _CATALOG_FILE
 
 
-def load_catalog() -> dict[str, str]:
+def _parse_catalog_entry(value: object) -> CodebaseEntry | None:
+    if isinstance(value, dict):
+        git = value.get("git")
+        if not isinstance(git, str) or not git.strip():
+            return None
+        description = value.get("description")
+        docs = value.get("docs")
+        return {
+            "git": git.strip(),
+            "description": description.strip() if isinstance(description, str) else "",
+            "docs": docs.strip() if isinstance(docs, str) else "",
+        }
+    if isinstance(value, str) and value.strip():
+        return {"git": value.strip(), "description": "", "docs": ""}
+    return None
+
+
+def load_catalog() -> dict[str, CodebaseEntry]:
     with catalog_path().open("r", encoding="utf-8") as f:
         raw = json.load(f)
     if not isinstance(raw, dict):
         return {}
-    return {str(k): str(v) for k, v in raw.items()}
+    catalog: dict[str, CodebaseEntry] = {}
+    for key, value in raw.items():
+        entry = _parse_catalog_entry(value)
+        if entry is not None:
+            catalog[str(key)] = entry
+    return catalog
 
 
 def catalog_names() -> list[str]:
     return sorted(load_catalog())
+
+
+def codebase_git_url(name: str) -> str | None:
+    entry = load_catalog().get(name)
+    if entry is None:
+        return None
+    return entry["git"]
+
+
+def catalog_summaries() -> list[CodebaseSummary]:
+    summaries: list[CodebaseSummary] = []
+    for name in catalog_names():
+        entry = load_catalog()[name]
+        summaries.append(
+            {
+                "name": name,
+                "description": entry["description"],
+                "docs": entry["docs"],
+            }
+        )
+    return summaries
 
 
 def codebase_local_path(name: str, home: Path | None = None) -> Path:

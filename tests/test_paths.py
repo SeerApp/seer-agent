@@ -30,7 +30,18 @@ class TestLoadCatalog:
     def test_reads_bundled_codebases_json(self) -> None:
         catalog = paths.load_catalog()
         assert "agave" in catalog
-        assert catalog["agave"].startswith("https://")
+        assert catalog["agave"]["git"].startswith("https://")
+        assert catalog["agave"]["description"]
+
+    def test_catalog_summaries_include_name_description_docs(self) -> None:
+        summaries = paths.catalog_summaries()
+        assert summaries
+        anchor = next(item for item in summaries if item["name"] == "anchor")
+        assert anchor["description"]
+        assert anchor["docs"] == "https://www.anchor-lang.com/docs"
+        agave = next(item for item in summaries if item["name"] == "agave")
+        assert agave["description"]
+        assert agave["docs"] == ""
 
 
 class TestIsCodebaseAvailable:
@@ -51,13 +62,16 @@ class TestIsCodebaseAvailable:
 
 
 class TestGetAvailableCodebasesHandler:
-    def test_returns_catalog_keys(self) -> None:
+    def test_returns_catalog_summaries(self) -> None:
         from seer_agent.register.tools.get_available_codebases import handler
 
         data = json.loads(handler())
         assert data["success"] is True
-        assert data["codebases"] == paths.catalog_names()
-        assert "agave" in data["codebases"]
+        assert data["codebases"] == paths.catalog_summaries()
+        names = {item["name"] for item in data["codebases"]}
+        assert "agave" in names
+        anchor = next(item for item in data["codebases"] if item["name"] == "anchor")
+        assert anchor["docs"] == "https://www.anchor-lang.com/docs"
 
 
 class TestIsCodebaseAvailableHandler:

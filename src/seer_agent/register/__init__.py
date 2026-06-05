@@ -18,7 +18,7 @@ def register_tools(ctx: SeerPluginContext) -> None:
         toolset=TOOLSET_NAME,
         schema=get_available_codebases_schema(),
         handler=lambda args, **kw: get_available_codebases_handler(),
-        description="List known Solana codebase names from the catalog.",
+        description="List known Solana codebases (name, description, docs link).",
         emoji="📋",
     )
 
