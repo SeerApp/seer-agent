@@ -1,7 +1,11 @@
 import json
-from pathlib import Path
 
-from ...paths import package_dir
+from ...core.codebase_store import (
+    catalog_names,
+    is_available,
+    load_catalog,
+    local_path,
+)
 from ...types import JsonDict
 
 
@@ -10,14 +14,17 @@ NAME = "is_codebase_available"
 
 def schema() -> JsonDict:
     return {
-        "name": "is_codebase_available",
-        "description": "Check if specified Solana codebase is on the machine.",
+        "name": NAME,
+        "description": (
+            "Check whether a known Solana codebase is cloned under "
+            "HERMES_HOME/seer-agent/codebases/<name>/ (or SEER_CODEBASES_ROOT)."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
                 "codebase": {
                     "type": "string",
-                    "enum": _codebase_names(),
+                    "enum": catalog_names(),
                     "description": "Known Solana codebase to check for local availability.",
                 },
             },
@@ -27,36 +34,23 @@ def schema() -> JsonDict:
 
 
 def handler(codebase: str) -> str:
-    codebases = _load_codebases()
+    catalog = load_catalog()
     name = (codebase or "").strip()
-    if name not in codebases:
+    if name not in catalog:
         return json.dumps(
             {
                 "success": False,
                 "error": "Unknown codebase.",
-                "known_codebases": sorted(codebases),
+                "known_codebases": catalog_names(),
             }
         )
-    return json.dumps(
-        {
-            "success": True,
-            "codebase": name,
-            "repo_url": codebases[name],
-        }
-    )
-
-
-def _codebases_path() -> Path:
-    return package_dir() / "codebases.json"
-
-
-def _load_codebases() -> dict[str, str]:
-    with _codebases_path().open("r", encoding="utf-8") as f:
-        raw = json.load(f)
-    if not isinstance(raw, dict):
-        return {}
-    return {str(k): str(v) for k, v in raw.items()}
-
-
-def _codebase_names() -> list[str]:
-    return sorted(_load_codebases())
+    path = local_path(name)
+    available = is_available(name)
+    payload: dict[str, object] = {
+        "success": True,
+        "codebase": name,
+        "repo_url": catalog[name],
+        "path": str(path),
+        "available": available,
+    }
+    return json.dumps(payload)
