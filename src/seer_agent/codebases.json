@@ -15,10 +15,30 @@
   },
   "pinocchio": { 
     "git": "https://github.com/anza-xyz/pinocchio.git", 
-    "description": "The most popular lightweight development frameowrk on Solana."
+    "description": "The most popular lightweight development frameowrk on Solana.", 
+    "docs": "https://www.helius.dev/blog/pinocchio"
   },
   "solana_explorer": { 
     "git": "https://github.com/solana-foundation/explorer.git",
     "description": "The most popular transaction explorer on Solana. Uses RPC methods to display transaction data."
+  }, 
+  "drift_protocol_v2": {
+    "git": "https://github.com/drift-labs/protocol-v2.git",
+    "description": "On-chain perpetuals dex with multiple liquidity mechanisms.", 
+    "docs": "https://docs.drift.trade/protocol"
+  }, 
+  "solana_fm_explorer_kit": {
+    "git": "https://github.com/solana-fm/explorer-kit.git",
+    "description": "Public Solana data parser."
+  },
+  "litesvm": {
+    "git": "https://github.com/LiteSVM/litesvm.git",
+    "description": "Fast and lightweight library for testing Solana programs. Most popular for unit testing.",
+    "docs": "https://www.litesvm.com/docs/getting-started"
+  },
+  "surfpool": {
+    "git": "https://github.com/solana-foundation/surfpool.git",
+    "description": "Drop-in replacement for `solana-test-validator`, capable of running with real mainnet state. Most popular for end-to-end testing.",
+    "docs": "https://docs.surfpool.run/"
   }
 }
