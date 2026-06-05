@@ -1,6 +1,6 @@
 import json
 
-from ...paths import (
+from ...codebases import (
     catalog_names,
     codebase_git_url,
     codebase_local_path,

@@ -1,6 +1,6 @@
 import json
 
-from ...paths import catalog_summaries, codebase_store_clone_guidance
+from ...codebases import catalog_summaries, codebase_store_clone_guidance
 from ...types import JsonDict
 
 

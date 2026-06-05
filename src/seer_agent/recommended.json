@@ -1,0 +1,9 @@
+{
+  "solana": {
+    "description": "Solana CLI plus the standard local dev stack (Rust, Anchor, Surfpool, Node, Yarn) via the official quick installer.",
+    "check": "solana -V",
+    "download": "curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash",
+    "docs": "https://solana.com/docs/intro/installation",
+    "verify": "rustc --version && solana --version && anchor --version && surfpool --version && node --version && yarn --version"
+  }
+}
