@@ -20,7 +20,7 @@ A unified, open-source agentic context of Solana tools, codebases, edge-cases, e
 
 ## What It Is Not
 
-Seer Agent is not a replacement for good judgement, informative spec, and clear requirements. 
+Not a replacement for good judgement, informative spec, and clear requirements. 
 
 ## Features
 
