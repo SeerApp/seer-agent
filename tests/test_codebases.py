@@ -33,6 +33,25 @@ class TestLoadCatalog:
         assert catalog["agave"]["git"].startswith("https://")
         assert catalog["agave"]["description"]
 
+    def test_tier1_and_tier2_codebases_present(self) -> None:
+        catalog = codebases.load_catalog()
+        for name in (
+            "solana_web3_js",
+            "solana_kit",
+            "solana_sdk",
+            "spl_token",
+            "token_2022",
+            "mpl_token_metadata",
+            "mollusk",
+            "phoenix",
+            "openbook_v2",
+            "raydium_amm",
+            "orca_whirlpools",
+        ):
+            assert name in catalog
+            assert catalog[name]["git"].startswith("https://")
+            assert catalog[name]["description"]
+
     def test_catalog_summaries_include_name_description_docs(self) -> None:
         summaries = codebases.catalog_summaries()
         assert summaries

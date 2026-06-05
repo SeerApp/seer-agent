@@ -3,30 +3,30 @@
     "git": "https://github.com/anza-xyz/agave.git",
     "description": "The Validator for the Solana ecosystem. The majority of development tools are built on top of this codebase."
   },
-  "anchor": { 
+  "anchor": {
     "git": "https://github.com/otter-sec/anchor.git",
     "description": "The most popular development framework on Solana.",
     "docs": "https://www.anchor-lang.com/docs"
   },
-  "quasar": { 
+  "quasar": {
     "git": "https://github.com/blueshift-gg/quasar.git",
     "description": "The fastest development framework on Solana.",
     "docs": "https://quasar-lang.com/docs"
   },
-  "pinocchio": { 
-    "git": "https://github.com/anza-xyz/pinocchio.git", 
-    "description": "The most popular lightweight development frameowrk on Solana.", 
+  "pinocchio": {
+    "git": "https://github.com/anza-xyz/pinocchio.git",
+    "description": "The most popular lightweight development frameowrk on Solana.",
     "docs": "https://www.helius.dev/blog/pinocchio"
   },
-  "solana_explorer": { 
+  "solana_explorer": {
     "git": "https://github.com/solana-foundation/explorer.git",
     "description": "The most popular transaction explorer on Solana. Uses RPC methods to display transaction data."
-  }, 
+  },
   "drift_protocol_v2": {
     "git": "https://github.com/drift-labs/protocol-v2.git",
-    "description": "On-chain perpetuals dex with multiple liquidity mechanisms.", 
+    "description": "On-chain perpetuals dex with multiple liquidity mechanisms.",
     "docs": "https://docs.drift.trade/protocol"
-  }, 
+  },
   "solana_fm_explorer_kit": {
     "git": "https://github.com/solana-fm/explorer-kit.git",
     "description": "Public Solana data parser."
@@ -40,5 +40,60 @@
     "git": "https://github.com/solana-foundation/surfpool.git",
     "description": "Drop-in replacement for `solana-test-validator`, capable of running with real mainnet state. Most popular for end-to-end testing.",
     "docs": "https://docs.surfpool.run/"
+  },
+  "solana_web3_js": {
+    "git": "https://github.com/solana-foundation/solana-web3.js.git",
+    "description": "Legacy (1.x) JavaScript/TypeScript client SDK for RPC, transactions, and accounts. Still widely used in existing apps.",
+    "docs": "https://solana-foundation.github.io/solana-web3.js/"
+  },
+  "solana_kit": {
+    "git": "https://github.com/anza-xyz/kit.git",
+    "description": "Modern modular JavaScript SDK (@solana/kit), the successor to web3.js 2.x. Recommended for new client development.",
+    "docs": "https://solana.com/docs/clients/official/javascript"
+  },
+  "solana_sdk": {
+    "git": "https://github.com/anza-xyz/solana-sdk.git",
+    "description": "Rust SDK for on-chain program and client development; home of the core Solana types and syscalls used by Agave.",
+    "docs": "https://docs.rs/solana-sdk/"
+  },
+  "spl_token": {
+    "git": "https://github.com/solana-program/token.git",
+    "description": "SPL Token program and clients—the standard fungible-token interface on Solana.",
+    "docs": "https://spl.solana.com/token"
+  },
+  "token_2022": {
+    "git": "https://github.com/solana-program/token-2022.git",
+    "description": "Token-2022 (Token Extensions) program and clients for transfer fees, hooks, and other extensions.",
+    "docs": "https://spl.solana.com/token-2022"
+  },
+  "mpl_token_metadata": {
+    "git": "https://github.com/metaplex-foundation/mpl-token-metadata.git",
+    "description": "Metaplex Token Metadata program for attaching name, URI, and royalty data to fungible and non-fungible tokens.",
+    "docs": "https://developers.metaplex.com/"
+  },
+  "mollusk": {
+    "git": "https://github.com/anza-xyz/mollusk.git",
+    "description": "Lightweight Anza SVM test harness for fast, deterministic on-chain program unit tests.",
+    "docs": "https://solana.com/docs/programs/testing/mollusk"
+  },
+  "phoenix": {
+    "git": "https://github.com/Ellipsis-Labs/phoenix-v1.git",
+    "description": "On-chain central limit order book that atomically settles trades.",
+    "docs": "https://ellipsis-labs.gitbook.io/phoenix/"
+  },
+  "openbook_v2": {
+    "git": "https://github.com/openbook-dex/openbook-v2.git",
+    "description": "OpenBook v2 CLOB program and TypeScript client—the successor to Serum on Solana.",
+    "docs": "https://docs.openbookdex.com/"
+  },
+  "raydium_amm": {
+    "git": "https://github.com/raydium-io/raydium-amm.git",
+    "description": "Raydium constant-product AMM integrated with OpenBook for hybrid pool and order-book liquidity.",
+    "docs": "https://docs.raydium.io/"
+  },
+  "orca_whirlpools": {
+    "git": "https://github.com/orca-so/whirlpools.git",
+    "description": "Orca concentrated-liquidity AMM (Whirlpools)—reference for CLMM math and pool architecture on Solana.",
+    "docs": "https://dev.orca.so/"
   }
 }
