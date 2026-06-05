@@ -1,4 +1,4 @@
 name: seer-agent
-version: "0.5.0"
+version: "0.1.0"
 description: "Solana codebase catalog and local clone availability tools."
-author: "local"
+author: "SeerApp"
