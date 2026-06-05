@@ -1,0 +1,6 @@
+"""Type stubs for Hermes runtime (provided when the plugin runs inside hermes-agent)."""
+
+from pathlib import Path
+
+def get_hermes_home() -> Path: ...
+def display_hermes_home() -> str: ...

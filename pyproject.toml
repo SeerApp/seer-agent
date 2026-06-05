@@ -15,3 +15,12 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.pyright]
+include = ["src", "tests", "__init__.py"]
+exclude = [".venv", ".pytest_cache"]
+extraPaths = ["src"]
+stubPath = "typings"
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"

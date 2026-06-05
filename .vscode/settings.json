@@ -1,0 +1,4 @@
+{
+  "python.analysis.extraPaths": ["${workspaceFolder}/src"],
+  "python.analysis.stubPath": "${workspaceFolder}/typings"
+}

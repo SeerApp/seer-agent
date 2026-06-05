@@ -14,7 +14,8 @@ from .command_engine import (
 from ..core import operations, state
 from ..router import FEATURE_DEVELOPER, PRINCIPAL_ENGINEER, PROJECT_MANAGER, route_task
 from ..paths import package_dir
-from ..runtime_utils import resolve_display_home, resolve_hermes_home, soul_path
+from ..runtime_utils import soul_path
+from ..home import resolve_hermes_home, resolve_display_home
 from ..types import SeerPluginContext
 
 logger = logging.getLogger(__name__)
