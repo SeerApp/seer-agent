@@ -1,10 +1,10 @@
 import json
 
-from ...core.codebase_store import (
+from ...paths import (
     catalog_names,
-    is_available,
+    codebase_local_path,
+    is_codebase_available as codebase_is_available,
     load_catalog,
-    local_path,
 )
 from ...types import JsonDict
 
@@ -44,8 +44,8 @@ def handler(codebase: str) -> str:
                 "known_codebases": catalog_names(),
             }
         )
-    path = local_path(name)
-    available = is_available(name)
+    path = codebase_local_path(name)
+    available = codebase_is_available(name)
     payload: dict[str, object] = {
         "success": True,
         "codebase": name,

@@ -1,4 +1,4 @@
-"""Tests for core.codebase_store."""
+"""Tests for paths (codebase catalog and clone layout)."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ from unittest.mock import patch
 
 import pytest
 
-from seer_agent.core import codebase_store
+import seer_agent.paths as paths
 
 
 class TestResolveCodebasesRoot:
     def test_under_hermes_home_by_default(self, tmp_path: Path) -> None:
         home = tmp_path / "profile"
-        assert codebase_store.resolve_codebases_root(home=home) == (
+        assert paths.resolve_codebases_root(home=home) == (
             home / "seer-agent" / "codebases"
         ).resolve()
 
@@ -23,31 +23,31 @@ class TestResolveCodebasesRoot:
     ) -> None:
         custom = tmp_path / "shared-repos"
         monkeypatch.setenv("SEER_CODEBASES_ROOT", str(custom))
-        assert codebase_store.resolve_codebases_root(home=tmp_path / "ignored") == custom.resolve()
+        assert paths.resolve_codebases_root(home=tmp_path / "ignored") == custom.resolve()
 
 
 class TestLoadCatalog:
     def test_reads_bundled_codebases_json(self) -> None:
-        catalog = codebase_store.load_catalog()
+        catalog = paths.load_catalog()
         assert "agave" in catalog
         assert catalog["agave"].startswith("https://")
 
 
-class TestIsAvailable:
+class TestIsCodebaseAvailable:
     def test_false_when_directory_missing(self, tmp_path: Path) -> None:
         home = tmp_path / "hermes"
-        assert codebase_store.is_available("agave", home=home) is False
+        assert paths.is_codebase_available("agave", home=home) is False
 
     def test_false_for_unknown_name(self, tmp_path: Path) -> None:
         home = tmp_path / "hermes"
-        assert codebase_store.is_available("not-in-catalog", home=home) is False
+        assert paths.is_codebase_available("not-in-catalog", home=home) is False
 
     def test_true_when_git_repo_present(self, tmp_path: Path) -> None:
         home = tmp_path / "hermes"
-        clone = codebase_store.local_path("agave", home=home)
+        clone = paths.codebase_local_path("agave", home=home)
         clone.mkdir(parents=True)
-        with patch.object(codebase_store, "is_git_repo", return_value=True):
-            assert codebase_store.is_available("agave", home=home) is True
+        with patch.object(paths, "is_git_repo", return_value=True):
+            assert paths.is_codebase_available("agave", home=home) is True
 
 
 class TestGetAvailableCodebasesHandler:
@@ -56,7 +56,7 @@ class TestGetAvailableCodebasesHandler:
 
         data = json.loads(handler())
         assert data["success"] is True
-        assert data["codebases"] == codebase_store.catalog_names()
+        assert data["codebases"] == paths.catalog_names()
         assert "agave" in data["codebases"]
 
 
@@ -73,21 +73,21 @@ class TestIsCodebaseAvailableHandler:
         from seer_agent.register.tools.is_codebase_available import handler
 
         home = tmp_path / "hermes"
-        with patch.object(codebase_store, "resolve_hermes_home", return_value=home):
+        with patch.object(paths, "resolve_hermes_home", return_value=home):
             raw = handler("agave")
         data = json.loads(raw)
         assert data["success"] is True
         assert data["codebase"] == "agave"
         assert data["available"] is False
-        assert data["path"] == str(codebase_store.local_path("agave", home=home))
+        assert data["path"] == str(paths.codebase_local_path("agave", home=home))
 
     def test_known_and_cloned(self, tmp_path: Path) -> None:
         from seer_agent.register.tools.is_codebase_available import handler
 
         home = tmp_path / "hermes"
         with (
-            patch.object(codebase_store, "resolve_hermes_home", return_value=home),
-            patch.object(codebase_store, "is_git_repo", return_value=True),
+            patch.object(paths, "resolve_hermes_home", return_value=home),
+            patch.object(paths, "is_git_repo", return_value=True),
         ):
             raw = handler("agave")
         data = json.loads(raw)

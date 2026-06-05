@@ -1,11 +1,11 @@
 # seer-agent
 
-Hermes plugin for Seer persona routing and Solana codebase tooling.
+Hermes plugin for Solana codebase catalog and local clone checks.
 
 ## Layout
 
 - `plugin.yaml` + root `__init__.py` — Hermes install entry (loads `src/seer_agent/`)
-- `src/seer_agent/` — implementation package (code, personas, JSON data)
+- `src/seer_agent/` — implementation package (tools, codebases.json)
 
 ## Tests
 

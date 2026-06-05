@@ -1,6 +1,6 @@
 import json
 
-from ...core.codebase_store import catalog_names
+from ...paths import catalog_names
 from ...types import JsonDict
 
 
