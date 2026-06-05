@@ -1,9 +1,51 @@
 {
   "solana": {
-    "description": "Solana CLI plus the standard local dev stack (Rust, Anchor, Surfpool, Node, Yarn) via the official quick installer.",
+    "description": "Solana CLI and platform tools via the official quick installer. Use the granular entries below to diagnose or fix partial installs.",
     "check": "solana -V",
     "download": "curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash",
     "docs": "https://solana.com/docs/intro/installation",
     "verify": "rustc --version && solana --version && anchor --version && surfpool --version && node --version && yarn --version"
+  },
+  "anchor": {
+    "description": "Anchor CLI via AVM (Anchor Version Manager). Requires Rust/cargo. Add ~/.avm/bin and ~/.cargo/bin to PATH if anchor is not found after install.",
+    "check": "anchor --version",
+    "download": "cargo install --git https://github.com/solana-foundation/anchor avm --force && avm install latest && avm use latest",
+    "docs": "https://www.anchor-lang.com/docs/installation",
+    "verify": "avm --version && anchor --version"
+  },
+  "surfpool": {
+    "description": "Local validator with mainnet state fork support; drop-in for solana-test-validator. Install separately if the Solana quick installer did not include it.",
+    "check": "surfpool --version",
+    "download": "curl -sL https://run.surfpool.run/ | bash",
+    "docs": "https://docs.surfpool.run/toolchain/getting-started",
+    "verify": "surfpool --version"
+  },
+  "rust": {
+    "description": "Rust toolchain (rustc/cargo) for Solana programs, Anchor, and AVM. Required before anchor or native program builds.",
+    "check": "rustc --version",
+    "download": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
+    "docs": "https://rust-lang.org/tools/install/",
+    "verify": "rustc --version && cargo --version"
+  },
+  "node": {
+    "description": "Node.js for TS clients, Anchor integration tests, and SDK scripts. Installed here via fnm (Fast Node Manager). Restart the shell or source your profile after install.",
+    "check": "node --version",
+    "download": "curl -fsSL https://fnm.vercel.app/install | bash && fnm install --lts && fnm default lts-latest",
+    "docs": "https://nodejs.org/en/download",
+    "verify": "node --version && npm --version"
+  },
+  "yarn": {
+    "description": "Yarn package manager, common in Anchor and legacy Solana JS repos. Uses Node corepack when available.",
+    "check": "yarn --version",
+    "download": "corepack enable && corepack prepare yarn@stable --activate",
+    "docs": "https://yarnpkg.com/getting-started/install",
+    "verify": "yarn --version"
+  },
+  "jq": {
+    "description": "JSON processor for RPC responses and CLI debugging. Uses Homebrew on macOS or apt on Debian/Ubuntu.",
+    "check": "jq --version",
+    "download": "command -v brew >/dev/null && brew install jq || (sudo apt-get update && sudo apt-get install -y jq)",
+    "docs": "https://jqlang.org/download/",
+    "verify": "jq --version"
   }
 }
