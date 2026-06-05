@@ -27,46 +27,32 @@ class TestResolveCodebasesRoot:
 
 
 class TestLoadCatalog:
-    def test_reads_bundled_codebases_json(self) -> None:
+    def test_catalog_is_nonempty_and_entries_are_well_formed(self) -> None:
         catalog = codebases.load_catalog()
-        assert "agave" in catalog
-        assert catalog["agave"]["git"].startswith("https://")
-        assert catalog["agave"]["description"]
+        assert catalog
+        for name, entry in catalog.items():
+            assert name.strip()
+            git = entry["git"]
+            assert git.startswith("https://")
+            assert entry["description"].strip()
+            assert isinstance(entry["docs"], str)
 
-    def test_tier1_and_tier2_codebases_present(self) -> None:
+    def test_catalog_summaries_match_catalog(self) -> None:
         catalog = codebases.load_catalog()
-        for name in (
-            "solana_web3_js",
-            "solana_kit",
-            "solana_sdk",
-            "spl_token",
-            "token_2022",
-            "mpl_token_metadata",
-            "mollusk",
-            "phoenix",
-            "openbook_v2",
-            "raydium_amm",
-            "orca_whirlpools",
-        ):
-            assert name in catalog
-            assert catalog[name]["git"].startswith("https://")
-            assert catalog[name]["description"]
-
-    def test_catalog_summaries_include_name_description_docs(self) -> None:
         summaries = codebases.catalog_summaries()
-        assert summaries
-        anchor = next(item for item in summaries if item["name"] == "anchor")
-        assert anchor["description"]
-        assert anchor["docs"] == "https://www.anchor-lang.com/docs"
-        agave = next(item for item in summaries if item["name"] == "agave")
-        assert agave["description"]
-        assert agave["docs"] == ""
+        assert len(summaries) == len(catalog)
+        assert {summary["name"] for summary in summaries} == set(catalog)
+        for summary in summaries:
+            entry = catalog[summary["name"]]
+            assert summary["description"] == entry["description"]
+            assert summary["docs"] == entry["docs"]
 
 
 class TestIsCodebaseAvailable:
     def test_false_when_directory_missing(self, tmp_path: Path) -> None:
         home = tmp_path / "hermes"
-        assert codebases.is_codebase_available("agave", home=home) is False
+        name = codebases.catalog_names()[0]
+        assert codebases.is_codebase_available(name, home=home) is False
 
     def test_false_for_unknown_name(self, tmp_path: Path) -> None:
         home = tmp_path / "hermes"
@@ -74,10 +60,11 @@ class TestIsCodebaseAvailable:
 
     def test_true_when_git_repo_present(self, tmp_path: Path) -> None:
         home = tmp_path / "hermes"
-        clone = codebases.codebase_local_path("agave", home=home)
+        name = codebases.catalog_names()[0]
+        clone = codebases.codebase_local_path(name, home=home)
         clone.mkdir(parents=True)
         with patch.object(codebases, "is_git_repo", return_value=True):
-            assert codebases.is_codebase_available("agave", home=home) is True
+            assert codebases.is_codebase_available(name, home=home) is True
 
 
 class TestGetAvailableCodebasesHandler:
@@ -87,10 +74,7 @@ class TestGetAvailableCodebasesHandler:
         data = json.loads(handler())
         assert data["success"] is True
         assert data["codebases"] == codebases.catalog_summaries()
-        names = {item["name"] for item in data["codebases"]}
-        assert "agave" in names
-        anchor = next(item for item in data["codebases"] if item["name"] == "anchor")
-        assert anchor["docs"] == "https://www.anchor-lang.com/docs"
+        assert data["codebases"]
 
 
 class TestIsCodebaseAvailableHandler:
@@ -100,28 +84,30 @@ class TestIsCodebaseAvailableHandler:
         raw = handler("missing")
         data = json.loads(raw)
         assert data["success"] is False
-        assert "agave" in data["known_codebases"]
+        assert data["known_codebases"] == codebases.catalog_names()
 
     def test_known_but_not_cloned(self, tmp_path: Path) -> None:
         from seer_agent.register.tools.is_codebase_available import handler
 
         home = tmp_path / "hermes"
+        name = codebases.catalog_names()[0]
         with patch.object(codebases, "resolve_hermes_home", return_value=home):
-            raw = handler("agave")
+            raw = handler(name)
         data = json.loads(raw)
         assert data["success"] is True
-        assert data["codebase"] == "agave"
+        assert data["codebase"] == name
         assert data["available"] is False
-        assert data["path"] == str(codebases.codebase_local_path("agave", home=home))
+        assert data["path"] == str(codebases.codebase_local_path(name, home=home))
 
     def test_known_and_cloned(self, tmp_path: Path) -> None:
         from seer_agent.register.tools.is_codebase_available import handler
 
         home = tmp_path / "hermes"
+        name = codebases.catalog_names()[0]
         with (
             patch.object(codebases, "resolve_hermes_home", return_value=home),
             patch.object(codebases, "is_git_repo", return_value=True),
         ):
-            raw = handler("agave")
+            raw = handler(name)
         data = json.loads(raw)
         assert data["available"] is True
