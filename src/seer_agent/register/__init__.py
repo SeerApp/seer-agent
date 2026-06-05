@@ -5,6 +5,7 @@ from ..types import SeerPluginContext
 from .tools.get_available_codebases import NAME as GET_AVAILABLE_CODEBASES_NAME
 from .tools.get_available_codebases import handler as get_available_codebases_handler
 from .tools.get_available_codebases import schema as get_available_codebases_schema
+
 from .tools.is_codebase_available import NAME as IS_CODEBASE_AVAILABLE_NAME
 from .tools.is_codebase_available import handler as is_codebase_available_handler
 from .tools.is_codebase_available import schema as is_codebase_available_schema
@@ -18,7 +19,9 @@ def register_tools(ctx: SeerPluginContext) -> None:
         toolset=TOOLSET_NAME,
         schema=get_available_codebases_schema(),
         handler=lambda args, **kw: get_available_codebases_handler(),
-        description="List known Solana codebases (name, description, docs link).",
+        description=(
+            "List known Solana codebases; clone catalog repos only under the seer-agent store path."
+        ),
         emoji="📋",
     )
 
@@ -27,6 +30,8 @@ def register_tools(ctx: SeerPluginContext) -> None:
         toolset=TOOLSET_NAME,
         schema=is_codebase_available_schema(),
         handler=lambda args, **kw: is_codebase_available_handler(codebase=args.get("codebase", "")),
-        description="Check if a known Solana codebase is available locally.",
+        description=(
+            "Check if a catalog codebase is cloned under the seer-agent store path."
+        ),
         emoji="📚",
     )

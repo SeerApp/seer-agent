@@ -1,6 +1,6 @@
 import json
 
-from ...paths import catalog_summaries
+from ...paths import catalog_summaries, codebase_store_clone_guidance
 from ...types import JsonDict
 
 
@@ -12,7 +12,8 @@ def schema() -> JsonDict:
         "name": NAME,
         "description": (
             "List known Solana codebases from the bundled catalog "
-            "(name, short description, docs link)."
+            "(name, short description, docs link). "
+            f"{codebase_store_clone_guidance()}"
         ),
         "parameters": {
             "type": "object",

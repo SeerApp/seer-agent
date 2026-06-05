@@ -41,6 +41,17 @@ def resolve_codebases_root(home: Path | None = None) -> Path:
     return base.joinpath(*_STORE_SEGMENTS).resolve()
 
 
+def codebase_store_clone_guidance(home: Path | None = None) -> str:
+    """Agent-facing text: canonical clone location for catalog codebases."""
+    store_root = resolve_codebases_root(home=home)
+    example = store_root / "agave"
+    return (
+        f"Catalog codebases MUST be git cloned only under {store_root}/<name>/ "
+        f"(example: {example}). Do not clone them to ~/projects, the session cwd, "
+        f"or any other path—availability is checked only in the store."
+    )
+
+
 def catalog_path() -> Path:
     """Bundled name → git URL map shipped with the plugin."""
     return package_dir() / _CATALOG_FILE

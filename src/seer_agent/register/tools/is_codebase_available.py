@@ -4,8 +4,10 @@ from ...paths import (
     catalog_names,
     codebase_git_url,
     codebase_local_path,
+    codebase_store_clone_guidance,
     is_codebase_available as codebase_is_available,
     load_catalog,
+    resolve_codebases_root,
 )
 from ...types import JsonDict
 
@@ -14,11 +16,13 @@ NAME = "is_codebase_available"
 
 
 def schema() -> JsonDict:
+    store_root = resolve_codebases_root()
     return {
         "name": NAME,
         "description": (
-            "Check whether a known Solana codebase is cloned under "
-            "HERMES_HOME/seer-agent/codebases/<name>/ (or SEER_CODEBASES_ROOT)."
+            f"Check whether a catalog codebase is cloned under {store_root}/<name>/ "
+            f"(for example {store_root}/agave/). "
+            f"{codebase_store_clone_guidance()}"
         ),
         "parameters": {
             "type": "object",
@@ -26,7 +30,10 @@ def schema() -> JsonDict:
                 "codebase": {
                     "type": "string",
                     "enum": catalog_names(),
-                    "description": "Known Solana codebase to check for local availability.",
+                    "description": (
+                        "Catalog codebase name. Clone it only under "
+                        f"{store_root}/<name>/ before checking availability."
+                    ),
                 },
             },
             "required": ["codebase"],
