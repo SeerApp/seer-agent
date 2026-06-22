@@ -14,6 +14,10 @@ from .get_recommended_tools import NAME as GET_RECOMMENDED_TOOLS_NAME
 from .get_recommended_tools import handler as get_recommended_tools_handler
 from .get_recommended_tools import schema as get_recommended_tools_schema
 
+from .trace_with_seer import NAME as TRACE_WITH_SEER_NAME
+from .trace_with_seer import handler as trace_with_seer_handler
+from .trace_with_seer import schema as trace_with_seer_schema
+
 TOOLSET_NAME = "seer_agent"
 
 
@@ -47,4 +51,23 @@ def register_tools(ctx: SeerPluginContext) -> None:
         handler=lambda args, **kw: get_recommended_tools_handler(),
         description="List recommended Solana dev CLIs with check, install, and verify commands.",
         emoji="🛠",
+    )
+
+    ctx.register_tool(
+        name=TRACE_WITH_SEER_NAME,
+        toolset=TOOLSET_NAME,
+        schema=trace_with_seer_schema(),
+        handler=lambda args, **kw: trace_with_seer_handler(
+            project_path=args.get("project_path", ""),
+            api_key=args.get("api_key"),
+            skip_build=bool(args.get("skip_build", False)),
+            consent=bool(args.get("consent", True)),
+            no_idl=bool(args.get("no_idl", False)),
+            artifacts_path=args.get("artifacts_path"),
+        ),
+        description=(
+            "Return a complete step-by-step plan for tracing Solana transactions through Seer: "
+            "prerequisites, authentication, seer run, test commands, and dashboard link."
+        ),
+        emoji="🔍",
     )
