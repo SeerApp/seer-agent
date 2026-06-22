@@ -64,6 +64,7 @@ def register_tools(ctx: SeerPluginContext) -> None:
             consent=bool(args.get("consent", True)),
             no_idl=bool(args.get("no_idl", False)),
             artifacts_path=args.get("artifacts_path"),
+            rpc_url=args.get("rpc_url"),
         ),
         description=(
             "Return a complete step-by-step plan for tracing Solana transactions through Seer: "

@@ -72,6 +72,20 @@ def schema() -> JsonDict:
                         "default ./target/deploy."
                     ),
                 },
+                "rpc_url": {
+                    "type": "string",
+                    "description": (
+                        "The Seer session RPC URL (e.g. https://rpc.seer.run/<id>). "
+                        "Provide this when a session is already running — the tool will "
+                        "skip the 'seer run' step entirely and go straight to test "
+                        "commands using this URL. "
+                        "Obtain it from: the RPC field in the seer TUI header "
+                        "(press 'c' in the TUI to copy it to clipboard), or from the "
+                        "SEER_RPC_URL environment variable if you exported it previously. "
+                        "Since the URL is derived from your API key it is stable across "
+                        "restarts — export it once and reuse it."
+                    ),
+                },
             },
             "required": ["project_path"],
         },
@@ -106,8 +120,10 @@ def handler(
     consent: bool = True,
     no_idl: bool = False,
     artifacts_path: str | None = None,
+    rpc_url: str | None = None,
 ) -> str:
     run_command = _build_run_command(api_key, skip_build, consent, no_idl, artifacts_path)
+    session_url = rpc_url.strip() if rpc_url else "https://rpc.seer.run/<session-id>"
 
     auth_step: dict[str, Any]
     if api_key:
@@ -191,89 +207,118 @@ def handler(
         {
             "step": 3,
             "name": "start_seer_session",
+            "session_already_provided": rpc_url is not None,
             "description": (
-                "From the project root, build all Solana. "
-                "This is the core step — it does everything automatically."
+                f"Session is already running at {session_url}. "
+                "Skipping seer run — proceeding directly to tests."
+                if rpc_url else
+                "Start a Seer session from the project root. "
+                "seer run opens an interactive TUI — the RPC URL is displayed "
+                "in the header bar. Once the URL is visible, hand it to the agent "
+                "so it can be used in test commands."
             ),
             "cwd": project_path,
-            "command": run_command,
-            "what_it_does": [
-                "Detects and compiles all Solana programs with debug info.",
-                "Discovers IDL files (Anchor projects) unless --no-idl is set.",
-                "Lists all files to be uploaded.",
-                "Uploads artifacts to Seer (temporarily stored, deleted after 7 days).",
-                "Starts a remote Solana validator with your programs deployed.",
-                "Prints the session RPC URL.",
-            ],
-            "expected_output": {
-                "pattern": "New Seer session at: https://rpc.seer.run/<session-id>",
-                "note": (
-                    "Copy this URL — it is your RPC endpoint for sending transactions. "
-                    "The URL is stable across session restarts as long as your API key "
-                    "does not change."
-                ),
-            },
-            "on_failure": {
-                "auth_error": (
-                    "If you see 'Authentication failed', run: seer login "
-                    "or set SEER_API_KEY in your environment."
-                ),
-                "build_error": (
-                    "If programs fail to compile, check the build summary output. "
-                    "Fix compilation errors then re-run the same command."
-                ),
-                "artifacts_error": (
-                    "If artifacts directory is not found, pass --artifacts <path> "
-                    "pointing to the directory containing your .so files."
-                ),
-                "no_programs_detected": (
-                    "If 'No Solana programs detected' is printed, confirm you are "
-                    "running from the project root (directory containing Cargo.toml "
-                    "or Anchor.toml with program definitions)."
-                ),
-            },
+            "command": None if rpc_url else run_command,
+            "tui_note": (
+                None if rpc_url else
+                "seer run opens a terminal UI (TUI). The session URL appears in "
+                "the header as: RPC  https://rpc.seer.run/<id>  (Xm Ys remaining). "
+                "The command does NOT print the URL to stdout — it is only visible "
+                "inside the TUI panel."
+            ),
+            "how_to_capture_url": (
+                None if rpc_url else {
+                    "option_1_clipboard": (
+                        "Press 'c' inside the TUI to copy the URL to your clipboard, "
+                        "then paste it and call this tool again with rpc_url=<pasted_url>."
+                    ),
+                    "option_2_env_var": (
+                        "Export the URL so the agent can read it without re-asking: "
+                        "export SEER_RPC_URL=https://rpc.seer.run/<id>  "
+                        "Then call this tool again with rpc_url=$SEER_RPC_URL. "
+                        "Because the URL is stable (derived from your API key), you "
+                        "only need to export it once — it survives session restarts."
+                    ),
+                    "option_3_script_capture": (
+                        "To capture the URL non-interactively (headless / CI): "
+                        "script -q /tmp/seer_session.txt -c 'seer run --consent' "
+                        "then: grep -oP 'https://rpc\\.seer\\.run/\\S+' /tmp/seer_session.txt | head -1 "
+                        "(requires the 'script' utility, available on Linux/macOS)."
+                    ),
+                }
+            ),
+            "what_it_does": (
+                [] if rpc_url else [
+                    "Detects and compiles all Solana programs with debug info.",
+                    "Discovers IDL files (Anchor projects) unless --no-idl is set.",
+                    "Lists all files to be uploaded (.so, .debug, source .rs, IDL).",
+                    "Uploads artifacts to Seer (deleted automatically after 7 days).",
+                    "Starts a remote Solana validator with your programs deployed.",
+                    "Opens an interactive TUI showing session status and RPC logs.",
+                ]
+            ),
+            "on_failure": (
+                {} if rpc_url else {
+                    "auth_error": (
+                        "If you see 'Authentication failed', run: seer login "
+                        "or set SEER_API_KEY in your environment."
+                    ),
+                    "build_error": (
+                        "If programs fail to compile, check the build summary output. "
+                        "Fix compilation errors then re-run the same command."
+                    ),
+                    "artifacts_error": (
+                        "If artifacts directory is not found, pass --artifacts <path> "
+                        "pointing to the directory containing your .so files."
+                    ),
+                    "no_programs_detected": (
+                        "If 'No Solana programs detected' is printed, confirm you are "
+                        "running from the project root (directory containing Cargo.toml "
+                        "or Anchor.toml with program definitions)."
+                    ),
+                }
+            ),
         },
         {
             "step": 4,
             "name": "run_tests_against_session",
             "description": (
-                "Point your test suite at the Seer session RPC URL from step 3. "
+                "Point your test suite at the Seer session RPC URL. "
                 "Your programs are already deployed — just direct transactions to the "
                 "session URL. Everything that works with solana-test-validator works here."
             ),
             "cwd": project_path,
-            "session_url_placeholder": "https://rpc.seer.run/<session-id>",
+            "session_url": session_url,
             "test_commands": {
                 "native_rust": {
                     "description": "Native Solana programs with Rust tests",
                     "setup": (
                         "In your test code, replace the RpcClient URL with the session URL:\n"
-                        "  let client = RpcClient::new(\"https://rpc.seer.run/<session-id>\");"
+                        f"  let client = RpcClient::new(\"{session_url}\");"
                     ),
                     "run": "cargo test",
                 },
                 "anchor_typescript": {
                     "description": "Anchor programs with TypeScript/Mocha tests",
-                    "run": "anchor test --provider.cluster https://rpc.seer.run/<session-id>",
+                    "run": f"anchor test --provider.cluster {session_url}",
                     "alternative": (
                         "Or set the cluster in Anchor.toml under [provider]: "
-                        "cluster = \"https://rpc.seer.run/<session-id>\""
+                        f"cluster = \"{session_url}\""
                     ),
                 },
                 "custom_typescript": {
                     "description": "Custom TypeScript/JavaScript client tests",
                     "setup": (
                         "import { Connection } from \"@solana/web3.js\";\n"
-                        "const connection = new Connection(\"https://rpc.seer.run/<session-id>\", \"confirmed\");"
+                        f"const connection = new Connection(\"{session_url}\", \"confirmed\");"
                     ),
                     "run": "npx ts-mocha tests/**/*.ts  # or your test runner",
                 },
             },
             "note": (
-                "Replace <session-id> in the URL with the actual ID from step 3 output. "
                 "The session timeout is 30 minutes of inactivity. "
                 "If it expires, run: seer run --skip-build (from the project directory) "
-                "to restart without rebuilding."
+                "to restart — the URL will be the same."
             ),
         },
         {

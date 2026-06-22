@@ -108,16 +108,24 @@ class TestHandler:
         step3 = result["steps"][2]
         assert "--consent" not in step3["command"]
 
-    def test_step3_has_expected_output(self) -> None:
+    def test_step3_has_tui_guidance_when_no_rpc_url(self) -> None:
         result = self._call(project_path="/my/project")
         step3 = result["steps"][2]
-        assert "expected_output" in step3
-        assert "rpc.seer.run" in step3["expected_output"]["pattern"]
+        assert step3["tui_note"] is not None
+        assert "TUI" in step3["tui_note"]
+        assert step3["how_to_capture_url"] is not None
+        assert "option_1_clipboard" in step3["how_to_capture_url"]
+        assert "option_2_env_var" in step3["how_to_capture_url"]
+        assert "option_3_script_capture" in step3["how_to_capture_url"]
+
+    def test_step3_session_not_provided_flag(self) -> None:
+        result = self._call(project_path="/my/project")
+        step3 = result["steps"][2]
+        assert step3["session_already_provided"] is False
 
     def test_step3_has_on_failure_guidance(self) -> None:
         result = self._call(project_path="/my/project")
         step3 = result["steps"][2]
-        assert "on_failure" in step3
         assert "auth_error" in step3["on_failure"]
 
     def test_step4_has_test_commands(self) -> None:
@@ -127,10 +135,58 @@ class TestHandler:
         assert "native_rust" in step4["test_commands"]
         assert "anchor_typescript" in step4["test_commands"]
 
+    def test_step4_uses_placeholder_url_when_no_rpc_url(self) -> None:
+        result = self._call(project_path="/my/project")
+        step4 = result["steps"][3]
+        assert step4["session_url"] == "https://rpc.seer.run/<session-id>"
+        assert "<session-id>" in step4["test_commands"]["anchor_typescript"]["run"]
+
     def test_step5_has_dashboard_url(self) -> None:
         result = self._call(project_path="/my/project")
         step5 = result["steps"][4]
         assert step5["url"] == "https://app.seer.run/dashboard"
+
+    # --- rpc_url parameter ---
+
+    def test_rpc_url_sets_session_already_provided(self) -> None:
+        result = self._call(
+            project_path="/my/project",
+            rpc_url="https://rpc.seer.run/3AXR11hQSS7nNf9C3DnwkSqzDZA",
+        )
+        step3 = result["steps"][2]
+        assert step3["session_already_provided"] is True
+
+    def test_rpc_url_nulls_seer_run_command(self) -> None:
+        result = self._call(
+            project_path="/my/project",
+            rpc_url="https://rpc.seer.run/3AXR11hQSS7nNf9C3DnwkSqzDZA",
+        )
+        step3 = result["steps"][2]
+        assert step3["command"] is None
+
+    def test_rpc_url_nulls_tui_guidance(self) -> None:
+        result = self._call(
+            project_path="/my/project",
+            rpc_url="https://rpc.seer.run/3AXR11hQSS7nNf9C3DnwkSqzDZA",
+        )
+        step3 = result["steps"][2]
+        assert step3["tui_note"] is None
+        assert step3["how_to_capture_url"] is None
+
+    def test_rpc_url_injected_into_test_commands(self) -> None:
+        url = "https://rpc.seer.run/3AXR11hQSS7nNf9C3DnwkSqzDZA"
+        result = self._call(project_path="/my/project", rpc_url=url)
+        step4 = result["steps"][3]
+        assert step4["session_url"] == url
+        assert url in step4["test_commands"]["anchor_typescript"]["run"]
+        assert url in step4["test_commands"]["native_rust"]["setup"]
+        assert url in step4["test_commands"]["custom_typescript"]["setup"]
+
+    def test_rpc_url_strips_whitespace(self) -> None:
+        url = "  https://rpc.seer.run/abc123  "
+        result = self._call(project_path="/my/project", rpc_url=url)
+        step4 = result["steps"][3]
+        assert step4["session_url"] == url.strip()
 
 
 class TestRegistration:
