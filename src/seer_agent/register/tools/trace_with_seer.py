@@ -220,19 +220,27 @@ def handler(
                 "URL pattern and exports SEER_RPC_URL automatically."
             ),
             "cwd": project_path,
-            "command": None if rpc_url else run_command,
+            "command": None,
+            "command_note": (
+                None if rpc_url else
+                "Do NOT run seer run directly in a headless terminal. "
+                "seer run calls crossterm::into_raw_mode on startup which requires a real PTY. "
+                "A headless terminal has no PTY device and fails with "
+                "'No such device or address (os error 6)' (ENXIO). "
+                "Use autonomous_capture_command which allocates a PTY via Python's pty module."
+            ),
             "autonomous_capture_command": (
                 None if rpc_url else {
                     "why": (
-                        "seer run uses crossterm::EnterAlternateScreen which writes "
-                        "directly to the TTY — stdout pipes and redirects cannot capture it. "
-                        "The URL never appears on stdout or in any file on disk. "
-                        "Solution: wrap seer run in 'script' (a POSIX utility that allocates a "
-                        "pseudo-TTY and records all screen bytes to a file), then read that file. "
-                        "To avoid Hermes safety-scanner approval on complex shell one-liners, "
-                        "the capture logic is written as a Python script file first "
-                        "(via write_file tool — no terminal approval needed), then executed "
-                        "with a plain 'python3' call."
+                        "seer run calls crossterm::into_raw_mode which requires a real PTY. "
+                        "In a headless agent terminal there is no PTY device, so it fails "
+                        "immediately with ENXIO (os error 6) before any output is produced. "
+                        "Python's built-in 'pty' module (stdlib, no install) calls "
+                        "posix_openpt/grantpt/unlockpt to allocate a kernel PTY pair, "
+                        "then launches seer run with that PTY as its controlling terminal. "
+                        "All bytes seer writes to the screen are readable from the master fd. "
+                        "select() is used to read chunks as they arrive, ANSI codes are "
+                        "stripped, and progress lines are streamed. URL is extracted once found."
                     ),
                     "step_1_check_auth": {
                         "description": (
@@ -265,55 +273,57 @@ def handler(
                         "target_path": "/tmp/seer_capture.py",
                         "script_content": "\n".join([
                             "#!/usr/bin/env python3",
-                            '"""Wrap seer run in script(1), stream output, and extract the RPC URL."""',
-                            "import subprocess, sys, re, time, tempfile, os, platform",
+                            '"""Allocate a PTY for seer run, stream output, extract the RPC URL."""',
+                            "import pty, os, sys, re, time, select, subprocess",
                             "",
                             "ANSI = re.compile(rb'\\x1b(?:[@-Z\\\\-_]|\\[[0-?]*[ -/]*[@-~])')",
+                            "URL_PAT = re.compile(rb'https://rpc\\.seer\\.run/[A-Za-z0-9]+')",
+                            "BOX = set('\\u2500\\u2502\\u250c\\u2510\\u2514\\u2518\\u251c\\u2524\\u252c\\u2534\\u253c ')",
                             "",
-                            "def strip_ansi(b: bytes) -> str:",
-                            "    clean = ANSI.sub(b'', b).replace(b'\\r\\n', b'\\n').replace(b'\\r', b'\\n')",
-                            "    return clean.decode('utf-8', errors='ignore')",
+                            "def strip_ansi(b):",
+                            "    return ANSI.sub(b'', b)",
                             "",
                             "def main():",
                             "    project_path = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()",
-                            "    cap = tempfile.mktemp(suffix='.txt', prefix='seer_cap_', dir='/tmp')",
-                            "    is_macos = platform.system() == 'Darwin'",
-                            "    if is_macos:",
-                            "        cmd = ['script', '-q', cap, 'seer', 'run', '--consent']",
-                            "    else:",
-                            "        cmd = ['script', '-q', cap, '-c', 'seer run --consent']",
-                            "    print(f'[seer-capture] starting seer run, capturing to {cap}', flush=True)",
-                            "    proc = subprocess.Popen(cmd, cwd=project_path)",
-                            "    url_pat = re.compile(r'https://rpc\\.seer\\.run/[A-Za-z0-9]+')",
-                            "    last_pos = 0",
-                            "    seen_lines: set[str] = set()",
-                            "    for _ in range(180):",
-                            "        time.sleep(1)",
-                            "        try:",
-                            "            raw = open(cap, 'rb').read()",
-                            "        except Exception:",
-                            "            continue",
-                            "        # stream new lines to stdout so the user sees progress",
-                            "        new_bytes = raw[last_pos:]",
-                            "        if new_bytes:",
-                            "            for line in strip_ansi(new_bytes).splitlines():",
-                            "                line = line.strip()",
-                            "                # skip empty lines, pure box-drawing chars, and duplicates",
-                            "                if not line or set(line) <= set('─│┌┐└┘├┤┬┴┼ '):",
+                            "    print('[seer-capture] allocating PTY and starting seer run...', flush=True)",
+                            "    master_fd, slave_fd = pty.openpty()",
+                            "    proc = subprocess.Popen(",
+                            "        ['seer', 'run', '--consent'],",
+                            "        cwd=project_path,",
+                            "        stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,",
+                            "        close_fds=True,",
+                            "    )",
+                            "    os.close(slave_fd)",
+                            "    buf = b''",
+                            "    seen = set()",
+                            "    deadline = time.time() + 180",
+                            "    while time.time() < deadline:",
+                            "        r, _, _ = select.select([master_fd], [], [], 1.0)",
+                            "        if r:",
+                            "            try:",
+                            "                chunk = os.read(master_fd, 4096)",
+                            "            except OSError:",
+                            "                break",
+                            "            buf += chunk",
+                            "            for line in strip_ansi(chunk).replace(b'\\r\\n', b'\\n').replace(b'\\r', b'\\n').split(b'\\n'):",
+                            "                text = line.decode('utf-8', errors='ignore').strip()",
+                            "                if not text or set(text) <= BOX:",
                             "                    continue",
-                            "                if line not in seen_lines:",
-                            "                    seen_lines.add(line)",
-                            "                    print(line, flush=True)",
-                            "            last_pos = len(raw)",
-                            "        # search for URL in all content captured so far",
-                            "        full = strip_ansi(raw)",
-                            "        m = url_pat.search(full)",
+                            "                if text not in seen:",
+                            "                    seen.add(text)",
+                            "                    print(text, flush=True)",
+                            "        m = URL_PAT.search(strip_ansi(buf))",
                             "        if m:",
-                            "            url = m.group(0).strip()",
+                            "            url = m.group(0).decode()",
                             "            print(f'SEER_RPC_URL={url}', flush=True)",
                             "            sys.exit(0)",
-                            "    print('ERROR: timed out after 180s waiting for RPC URL', file=sys.stderr)",
-                            "    proc.terminate()",
+                            "        if proc.poll() is not None and not r:",
+                            "            break",
+                            "    print('ERROR: seer exited or timed out before RPC URL appeared', file=sys.stderr)",
+                            "    try:",
+                            "        proc.terminate()",
+                            "    except Exception:",
+                            "        pass",
                             "    sys.exit(1)",
                             "",
                             "if __name__ == '__main__':",
@@ -335,29 +345,21 @@ def handler(
                         ),
                     },
                     "on_failure": {
-                        "timeout": (
-                            "If step_3 prints 'ERROR: timed out', check whether seer run "
-                            "itself is failing: run 'seer run --consent' directly in a terminal "
-                            "and check for auth errors or build errors before retrying."
+                        "seer_exits_before_url": (
+                            "If step_3 prints 'ERROR: seer exited or timed out': "
+                            "check the streamed output lines above for build errors or auth errors. "
+                            "Run step_1_check_auth first to confirm API_KEY_FOUND."
                         ),
-                        "script_not_found": (
-                            "If 'script: command not found': "
-                            "Linux: sudo apt install bsdutils   "
-                            "macOS: built-in, should always be present."
+                        "pty_not_available": (
+                            "If 'import pty' fails: pty is Unix/macOS only (not native Windows). "
+                            "In WSL it is always available. On native Windows, run seer run "
+                            "manually in a terminal and pass the URL via rpc_url parameter."
                         ),
                         "python3_not_found": (
-                            "If 'python3: command not found': "
-                            "install Python 3 via your package manager, "
-                            "or use the recommended_tools tool to check python/node install commands."
+                            "If 'python3: command not found': install Python 3."
                         ),
                     },
                 }
-            ),
-            "tui_note": (
-                None if rpc_url else
-                "seer run opens a terminal UI (TUI). The session URL appears in "
-                "the header as: RPC  https://rpc.seer.run/<id>  (Xm Ys remaining). "
-                "The autonomous_capture_command handles extraction without user interaction."
             ),
             "what_it_does": (
                 [] if rpc_url else [
