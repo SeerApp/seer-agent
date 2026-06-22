@@ -108,15 +108,35 @@ class TestHandler:
         step3 = result["steps"][2]
         assert "--consent" not in step3["command"]
 
-    def test_step3_has_tui_guidance_when_no_rpc_url(self) -> None:
+    def test_step3_has_autonomous_capture_command_when_no_rpc_url(self) -> None:
+        result = self._call(project_path="/my/project")
+        step3 = result["steps"][2]
+        cap = step3["autonomous_capture_command"]
+        assert cap is not None
+        assert "linux" in cap
+        assert "macos" in cap
+        assert "script" in cap["linux"]
+        assert "script" in cap["macos"]
+        assert "rpc.seer.run" in cap["linux"]
+        assert "SEER_RPC_URL" in cap["linux"]
+        assert "after_success" in cap
+
+    def test_step3_linux_capture_command_contains_run_command(self) -> None:
+        result = self._call(project_path="/my/project")
+        linux_cmd = result["steps"][2]["autonomous_capture_command"]["linux"]
+        assert "seer run" in linux_cmd
+        assert "--consent" in linux_cmd
+
+    def test_step3_capture_command_has_url_not_found_guidance(self) -> None:
+        result = self._call(project_path="/my/project")
+        on_failure = result["steps"][2]["on_failure"]
+        assert "url_not_found_in_capture" in on_failure
+
+    def test_step3_tui_note_present_when_no_rpc_url(self) -> None:
         result = self._call(project_path="/my/project")
         step3 = result["steps"][2]
         assert step3["tui_note"] is not None
         assert "TUI" in step3["tui_note"]
-        assert step3["how_to_capture_url"] is not None
-        assert "option_1_clipboard" in step3["how_to_capture_url"]
-        assert "option_2_env_var" in step3["how_to_capture_url"]
-        assert "option_3_script_capture" in step3["how_to_capture_url"]
 
     def test_step3_session_not_provided_flag(self) -> None:
         result = self._call(project_path="/my/project")
@@ -134,6 +154,40 @@ class TestHandler:
         assert "test_commands" in step4
         assert "native_rust" in step4["test_commands"]
         assert "anchor_typescript" in step4["test_commands"]
+        assert "custom_typescript" in step4["test_commands"]
+
+    def test_anchor_command_includes_skip_local_validator(self) -> None:
+        result = self._call(project_path="/my/project")
+        anchor_cmd = result["steps"][3]["test_commands"]["anchor_typescript"]["run"]
+        assert "--skip-local-validator" in anchor_cmd
+
+    def test_anchor_command_includes_skip_deploy(self) -> None:
+        result = self._call(project_path="/my/project")
+        anchor_cmd = result["steps"][3]["test_commands"]["anchor_typescript"]["run"]
+        assert "--skip-deploy" in anchor_cmd
+
+    def test_anchor_command_includes_cluster_url(self) -> None:
+        result = self._call(project_path="/my/project")
+        anchor_cmd = result["steps"][3]["test_commands"]["anchor_typescript"]["run"]
+        assert "--provider.cluster" in anchor_cmd
+
+    def test_anchor_flags_documented(self) -> None:
+        result = self._call(project_path="/my/project")
+        flags = result["steps"][3]["test_commands"]["anchor_typescript"]["flags"]
+        assert "--skip-local-validator" in flags
+        assert "--skip-deploy" in flags
+
+    def test_native_rust_has_deploy_note(self) -> None:
+        result = self._call(project_path="/my/project")
+        native = result["steps"][3]["test_commands"]["native_rust"]
+        assert "deploy_note" in native
+        assert "pre-deployed" in native["deploy_note"]
+
+    def test_custom_typescript_has_deploy_note(self) -> None:
+        result = self._call(project_path="/my/project")
+        custom = result["steps"][3]["test_commands"]["custom_typescript"]
+        assert "deploy_note" in custom
+        assert "pre-deployed" in custom["deploy_note"]
 
     def test_step4_uses_placeholder_url_when_no_rpc_url(self) -> None:
         result = self._call(project_path="/my/project")
@@ -171,14 +225,17 @@ class TestHandler:
         )
         step3 = result["steps"][2]
         assert step3["tui_note"] is None
-        assert step3["how_to_capture_url"] is None
+        assert step3["autonomous_capture_command"] is None
 
     def test_rpc_url_injected_into_test_commands(self) -> None:
         url = "https://rpc.seer.run/3AXR11hQSS7nNf9C3DnwkSqzDZA"
         result = self._call(project_path="/my/project", rpc_url=url)
         step4 = result["steps"][3]
         assert step4["session_url"] == url
-        assert url in step4["test_commands"]["anchor_typescript"]["run"]
+        anchor = step4["test_commands"]["anchor_typescript"]
+        assert url in anchor["run"]
+        assert "--skip-local-validator" in anchor["run"]
+        assert "--skip-deploy" in anchor["run"]
         assert url in step4["test_commands"]["native_rust"]["setup"]
         assert url in step4["test_commands"]["custom_typescript"]["setup"]
 

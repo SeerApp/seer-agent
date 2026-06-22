@@ -212,40 +212,74 @@ def handler(
                 f"Session is already running at {session_url}. "
                 "Skipping seer run — proceeding directly to tests."
                 if rpc_url else
-                "Start a Seer session from the project root. "
-                "seer run opens an interactive TUI — the RPC URL is displayed "
-                "in the header bar. Once the URL is visible, hand it to the agent "
-                "so it can be used in test commands."
+                "Start a Seer session and autonomously capture the RPC URL. "
+                "seer run launches an interactive TUI (via crossterm alternate-screen) "
+                "so the URL is never printed to stdout. "
+                "Use the autonomous_capture_command below — it runs seer via 'script' "
+                "which captures raw TTY bytes to a file, then polls that file for the "
+                "URL pattern and exports SEER_RPC_URL automatically."
             ),
             "cwd": project_path,
             "command": None if rpc_url else run_command,
+            "autonomous_capture_command": (
+                None if rpc_url else {
+                    "why": (
+                        "seer run uses crossterm::EnterAlternateScreen which writes "
+                        "directly to the TTY — stdout pipes and redirects do not capture it. "
+                        "'script' wraps the process in a pseudo-TTY and records all bytes "
+                        "written to the screen, including the URL rendered by the TUI. "
+                        "The URL characters themselves contain no ANSI escape sequences, "
+                        "so the grep pattern matches cleanly."
+                    ),
+                    "linux": (
+                        "SEER_CAP=$(mktemp /tmp/seer_cap.XXXXXX.txt) && "
+                        f"(cd {project_path} && script -q \"$SEER_CAP\" -c '{run_command}') & "
+                        "echo 'Waiting for Seer session URL...' && "
+                        "for i in $(seq 1 120); do "
+                        "  URL=$(grep -oP 'https://rpc\\.seer\\.run/\\S+' \"$SEER_CAP\" 2>/dev/null "
+                        "        | tr -d '\\r\\n[:space:]' | head -c 100); "
+                        "  if [ -n \"$URL\" ]; then "
+                        "    export SEER_RPC_URL=\"$URL\"; "
+                        "    echo \"SEER_RPC_URL=$URL\"; "
+                        "    break; "
+                        "  fi; "
+                        "  sleep 1; "
+                        "done; "
+                        "[ -z \"$SEER_RPC_URL\" ] && echo 'ERROR: timed out waiting for RPC URL' && exit 1 || true"
+                    ),
+                    "macos": (
+                        "SEER_CAP=$(mktemp /tmp/seer_cap.XXXXXX.txt) && "
+                        f"(cd {project_path} && script -q \"$SEER_CAP\" {run_command}) & "
+                        "echo 'Waiting for Seer session URL...' && "
+                        "for i in $(seq 1 120); do "
+                        "  URL=$(grep -oE 'https://rpc\\.seer\\.run/[A-Za-z0-9]+' \"$SEER_CAP\" 2>/dev/null "
+                        "        | head -1 | tr -d '\\r\\n[:space:]'); "
+                        "  if [ -n \"$URL\" ]; then "
+                        "    export SEER_RPC_URL=\"$URL\"; "
+                        "    echo \"SEER_RPC_URL=$URL\"; "
+                        "    break; "
+                        "  fi; "
+                        "  sleep 1; "
+                        "done; "
+                        "[ -z \"$SEER_RPC_URL\" ] && echo 'ERROR: timed out waiting for RPC URL' && exit 1 || true"
+                    ),
+                    "after_success": (
+                        "Once SEER_RPC_URL is printed, call trace_with_seer again with "
+                        "rpc_url=<extracted_url> to get the test commands with the real URL. "
+                        "The seer TUI keeps running in the background — do not kill it."
+                    ),
+                    "note_on_script_linux_syntax": (
+                        "Linux script: 'script -q <file> -c <cmd>' "
+                        "macOS script: 'script -q <file> <cmd>' (no -c flag). "
+                        "Detect with: uname -s"
+                    ),
+                }
+            ),
             "tui_note": (
                 None if rpc_url else
                 "seer run opens a terminal UI (TUI). The session URL appears in "
                 "the header as: RPC  https://rpc.seer.run/<id>  (Xm Ys remaining). "
-                "The command does NOT print the URL to stdout — it is only visible "
-                "inside the TUI panel."
-            ),
-            "how_to_capture_url": (
-                None if rpc_url else {
-                    "option_1_clipboard": (
-                        "Press 'c' inside the TUI to copy the URL to your clipboard, "
-                        "then paste it and call this tool again with rpc_url=<pasted_url>."
-                    ),
-                    "option_2_env_var": (
-                        "Export the URL so the agent can read it without re-asking: "
-                        "export SEER_RPC_URL=https://rpc.seer.run/<id>  "
-                        "Then call this tool again with rpc_url=$SEER_RPC_URL. "
-                        "Because the URL is stable (derived from your API key), you "
-                        "only need to export it once — it survives session restarts."
-                    ),
-                    "option_3_script_capture": (
-                        "To capture the URL non-interactively (headless / CI): "
-                        "script -q /tmp/seer_session.txt -c 'seer run --consent' "
-                        "then: grep -oP 'https://rpc\\.seer\\.run/\\S+' /tmp/seer_session.txt | head -1 "
-                        "(requires the 'script' utility, available on Linux/macOS)."
-                    ),
-                }
+                "The autonomous_capture_command handles extraction without user interaction."
             ),
             "what_it_does": (
                 [] if rpc_url else [
@@ -276,6 +310,14 @@ def handler(
                         "running from the project root (directory containing Cargo.toml "
                         "or Anchor.toml with program definitions)."
                     ),
+                    "url_not_found_in_capture": (
+                        "If the loop times out without finding the URL, check the capture "
+                        "file manually: strings $SEER_CAP | grep rpc.seer.run "
+                        "If the file is empty, 'script' may not be installed — "
+                        "install it with: sudo apt install bsdutils (Linux) or it is "
+                        "built-in on macOS. As a fallback, run seer run --consent manually "
+                        "and pass the URL via rpc_url parameter."
+                    ),
                 }
             ),
         },
@@ -294,25 +336,53 @@ def handler(
                     "description": "Native Solana programs with Rust tests",
                     "setup": (
                         "In your test code, replace the RpcClient URL with the session URL:\n"
-                        f"  let client = RpcClient::new(\"{session_url}\");"
+                        f"  let client = RpcClient::new(\"{session_url}\");\n"
+                        "Do NOT call solana program deploy or any programmatic deploy inside "
+                        "the test — Seer already deployed your programs during seer run."
                     ),
                     "run": "cargo test",
+                    "deploy_note": (
+                        "Programs are pre-deployed by seer run. "
+                        "Remove any deploy calls from test setup."
+                    ),
                 },
                 "anchor_typescript": {
                     "description": "Anchor programs with TypeScript/Mocha tests",
-                    "run": f"anchor test --provider.cluster {session_url}",
+                    "run": (
+                        f"anchor test --skip-local-validator --skip-deploy "
+                        f"--provider.cluster {session_url}"
+                    ),
+                    "flags": {
+                        "--skip-local-validator": (
+                            "Do not start a local solana-test-validator. "
+                            "Seer's remote session is already running."
+                        ),
+                        "--skip-deploy": (
+                            "Do not redeploy programs. "
+                            "Seer already deployed them during seer run."
+                        ),
+                    },
                     "alternative": (
-                        "Or set the cluster in Anchor.toml under [provider]: "
-                        f"cluster = \"{session_url}\""
+                        "Or set both flags permanently in Anchor.toml under [provider]:\n"
+                        f"  cluster = \"{session_url}\"\n"
+                        "  and pass --skip-local-validator --skip-deploy on every test run, "
+                        "or set test.skip_local_validator = true in Anchor.toml if supported."
                     ),
                 },
                 "custom_typescript": {
                     "description": "Custom TypeScript/JavaScript client tests",
                     "setup": (
                         "import { Connection } from \"@solana/web3.js\";\n"
-                        f"const connection = new Connection(\"{session_url}\", \"confirmed\");"
+                        f"const connection = new Connection(\"{session_url}\", \"confirmed\");\n"
+                        "Remove any BankrunProvider, AnchorProvider deploy(), or "
+                        "programDeploy() calls from your test setup — "
+                        "programs are already deployed by seer run."
                     ),
                     "run": "npx ts-mocha tests/**/*.ts  # or your test runner",
+                    "deploy_note": (
+                        "Programs are pre-deployed by seer run. "
+                        "Do not call any deploy methods in test beforeAll/before hooks."
+                    ),
                 },
             },
             "note": (
